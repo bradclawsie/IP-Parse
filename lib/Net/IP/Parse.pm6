@@ -3,16 +3,6 @@ use Subsets::Common;
 
 unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.1>;
 
-my sub valid_octet(Int:D $o --> Bool:D) is pure { return 0 <= $o <= 255; }
-
-my sub word_bytes(UInt16:D $word --> List:D[UInt8]) is pure {
-    return (($word +> 8) +& 0xFF),($word +& 0xFF); 
-}
-
-my sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) is pure {
-    return (($left_byte +& 0xFF ) +< 8) +| ($right_byte +& 0xFF);
-}
-
 my package EXPORT::DEFAULT {
     class VersionError is Exception {
         has $.input;
@@ -25,24 +15,32 @@ my package EXPORT::DEFAULT {
     }
 
     subset IPVersion of Int where * == 4|6;
+
+    my sub valid_octet(Int:D $o --> Bool:D) is pure { return 0 <= $o <= 255; }
+    
+    our sub word_bytes(UInt16:D $word --> List:D[UInt8]) is pure {
+        return (($word +> 8) +& 0xFF),($word +& 0xFF); 
+    }
+    
+    our sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) is pure {
+        return (($left_byte +& 0xFF ) +< 8) +| ($right_byte +& 0xFF);
+    }
     
     class IP {
         has UInt8 @.octets;
-        has IPVersion $.version;
+        has IPVersion $.version = Nil;
+        has Str $.zone_id = Nil;
 
-        our sub parse_ipv4(Str:D $addr --> Array:D[UInt8]) {
+        # Parse and return just the octets part of an IPv4 address.
+        our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) {
             my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
             AddressError.new(input=>$addr).throw unless so $matches;
             my UInt8 @octets = $matches.list.map({.Int});
             return @octets;
         }
 
-        our sub parse_ipv6(Str:D $s --> Array:D[UInt8]) {
-            AddressError.new(input=>"empty").throw unless $s ne '';
-            my ($addr,$zone) = (Nil,Nil);
-            ($addr,$zone) = $s.split: '#',2;
-            AddressError.new(input=>"empty addr").throw unless $addr ne '';
-            
+        # Parse and return just the octets part of an IPv6 address.
+        our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
             my UInt8 @bytes[16];
             @bytes[^16] = (loop { 0 });
             given ($addr.comb: '::').Int {
@@ -57,7 +55,9 @@ my package EXPORT::DEFAULT {
                         }
                         (@bytes[$i++],@bytes[$i++]) =  word_bytes $word;
                     }
-                    return @bytes;
+                    # Remove size constraint. Necessary to allow this to be input
+                    # to functions that accept Array[UInt8].
+                    return Array[UInt8].new(@bytes); 
                 }
                 when 1 {
                     my UInt8 @left_bytes[16];
@@ -93,7 +93,10 @@ my package EXPORT::DEFAULT {
                         }
                     }
                     for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
-                    return @bytes;
+                    
+                    # Remove size constraint. Necessary to allow this to be input
+                    # to functions that accept Array[UInt8].                  
+                    return Array[UInt8].new(@bytes);
                 }
                 default { AddressError.new(payload => "bad addr on split: $addr").throw; } 
             } 
@@ -101,9 +104,16 @@ my package EXPORT::DEFAULT {
         
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
-                self.BUILD(octets=>parse_ipv4 $addr);
+                self.BUILD(octets=>ipv4_octets $addr);
             } elsif ($addr ~~ /\:/) {
-                VersionError.new(input=>"ipv6 in progress!").throw;
+                my ($routable_part,$zone_id_part) = $addr.split: '%',2;
+                if $zone_id_part ~~ Str {
+                    if $zone_id_part eq '' {
+                        AddressError.new(input=>$addr ~ "; malformed zone").throw;
+                    }
+                    $!zone_id = $zone_id_part
+                }
+                self.BUILD(octets=>ipv6_octets $routable_part);
             } else {
                 AddressError.new(input=>$addr ~ "; no version detected").throw;
             }
