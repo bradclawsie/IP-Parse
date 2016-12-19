@@ -7,11 +7,10 @@ lives-ok {
     is ($ip.version == 4), True, 'is ipv4';
 }, 'valid';
 
-#lives-ok {
-#    my $ip = IP.new(addr=><8.8.8.8>);
-#    is ($ip.to_str() eq '8.8.8.8'), True, 'str is valid';
-#}, 'valid string match';
-
+lives-ok {
+    my $ip = IP.new(addr=><1.2.3.4>);
+    is (ip_str($ip) eq '1.2.3.4'), True, 'str is valid';
+}, 'valid string output';
 
 lives-ok {
     my $ip0 = IP.new(addr=>'8.8.8.8');
@@ -121,3 +120,8 @@ dies-ok {
 dies-ok {
     my IP $ip = IP.new(addr=><%eth0>);
 }, 'empty address detected';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
+    is (ip_str($ip) eq '2001:0db8:0a0b:12f0:0000:0000:0001:0001'), True, 'str is valid';
+}, 'valid string output';

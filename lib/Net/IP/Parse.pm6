@@ -131,8 +131,6 @@ my package EXPORT::DEFAULT {
                 default { AddressError.new(input=>@octets.gist ~ "; no version detected").throw; } 
             }
         }
-
-        method to_str() of Str:D { ... } 
     }
 
     my sub cmp(IP $lhs, IP $rhs) of Bool:D is pure {
@@ -152,4 +150,11 @@ my package EXPORT::DEFAULT {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
+    our sub ip_str(IP:D $ip --> Str:D) {
+        if $ip.version == 4 {
+            return $ip.octets.join: '.';
+        } else {
+            return $ip.octets.map({sprintf("%04x", bytes_word($^a,$^b))}).join: ':';
+        }        
+    }
 }
