@@ -150,33 +150,28 @@ my package EXPORT::DEFAULT {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
-    our sub ipv6_range_compress(IP:D $ip where $ip.version == 6) {
-        my ($i,$longest_start, $longest_end, $len,$current_start) = (0,0,0,0,-1);
+    our sub ipv6_compress_str(IP:D $ip where $ip.version == 6 --> Str:D) {
+        my ($i,$max_start,$max_end,$max_len,$start) = (0,0,0,0,-1);
         for $ip.octets -> $left_byte,$right_byte {
             if $left_byte == 0 && $right_byte == 0 {
-                $current_start = $i if $current_start == -1;
+                $start = $i if $start == -1;
             } else {
-                if $current_start != -1 {
-                    my $current_end = $i - 1;
-                    if ($current_end - $current_start) > $len {
-                        ($longest_start,$longest_end,$len) =
-                        ($current_start,$current_end,$current_end - $current_start);
-                    }
-                    $current_start = -1;
+                if $start != -1 {
+                    my ($end,$len) = ($i - 1,$i - 1 - $start);
+                    ($max_start,$max_end,$max_len) = ($start,$end,$len) if $len > $max_len;
+                    $start = -1;
                 }
             }
             $i++;
         }
-        if $len > 0 {
+        if $max_len != 0 {
             my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
             my ($pre,$post) = ('','');
-            if $longest_start > 0 {
-                $pre = @print_words[0..($longest_start-1)].join(':');
-            }
-            if $longest_end < 8 { 
-                $post = @print_words[($longest_end+1)..7].join(':');
-            }
-            say ($pre ~ '::' ~ $post);
+            $pre = @print_words[0..($max_start-1)].join(':') if $max_start > 0;
+            $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
+            return ($pre ~ '::' ~ $post);
+        } else {
+            return $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
         }
     }
     

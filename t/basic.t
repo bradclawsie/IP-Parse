@@ -129,10 +129,12 @@ lives-ok {
 lives-ok {
     my IP $ip = IP.new(addr=><1:0:0:1:0:0:0:1>);
     say '1:0:0:1:0:0:0:1';
-    ipv6_range_compress($ip);
+    my $compressed = ipv6_compress_str($ip);
+    say $compressed;
 }, 'valid string output';
 
 lives-ok {
     my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
-    ipv6_range_compress($ip);
+    my $compressed = ipv6_compress_str($ip);
+    say $compressed;
 }, 'valid string output';
