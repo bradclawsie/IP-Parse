@@ -151,11 +151,9 @@ my package EXPORT::DEFAULT {
     }
 
     our sub ipv6_range_compress(IP:D $ip where $ip.version == 6) {
-        my $i = 0;
-        my $current_start = -1;
-        my ($longest_start, $longest_end, $len) = (0,0,0);
-        for $ip.octets -> $a,$b {
-            if $a == 0 && $b == 0 {
+        my ($i,$longest_start, $longest_end, $len,$current_start) = (0,0,0,0,-1);
+        for $ip.octets -> $left_byte,$right_byte {
+            if $left_byte == 0 && $right_byte == 0 {
                 $current_start = $i if $current_start == -1;
             } else {
                 if $current_start != -1 {
@@ -172,12 +170,11 @@ my package EXPORT::DEFAULT {
         if $len > 0 {
             my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
             my ($pre,$post) = ('','');
-            my $j = @print_words.elems;
             if $longest_start > 0 {
                 $pre = @print_words[0..($longest_start-1)].join(':');
             }
-            if $longest_end < $j-1 {
-                $post = @print_words[($longest_end+1)..($j-1)].join(':');
+            if $longest_end < 8 { 
+                $post = @print_words[($longest_end+1)..7].join(':');
             }
             say ($pre ~ '::' ~ $post);
         }
