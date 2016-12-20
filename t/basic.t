@@ -123,5 +123,16 @@ dies-ok {
 
 lives-ok {
     my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
-    is (ip_str($ip) eq '2001:0db8:0a0b:12f0:0000:0000:0001:0001'), True, 'str is valid';
+    is (ip_str($ip) eq '2001:db8:a0b:12f0:0:0:1:1'), True, 'str is valid';
+}, 'valid string output';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><1:0:0:1:0:0:0:1>);
+    say '1:0:0:1:0:0:0:1';
+    ipv6_range_compress($ip);
+}, 'valid string output';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
+    ipv6_range_compress($ip);
 }, 'valid string output';

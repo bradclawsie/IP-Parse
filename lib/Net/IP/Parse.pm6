@@ -150,11 +150,45 @@ my package EXPORT::DEFAULT {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
+    our sub ipv6_range_compress(IP:D $ip where $ip.version == 6) {
+        my $i = 0;
+        my $current_start = -1;
+        my ($longest_start, $longest_end, $len) = (0,0,0);
+        for $ip.octets -> $a,$b {
+            if $a == 0 && $b == 0 {
+                $current_start = $i if $current_start == -1;
+            } else {
+                if $current_start != -1 {
+                    my $current_end = $i - 1;
+                    if ($current_end - $current_start) > $len {
+                        ($longest_start,$longest_end,$len) =
+                        ($current_start,$current_end,$current_end - $current_start);
+                    }
+                    $current_start = -1;
+                }
+            }
+            $i++;
+        }
+        if $len > 0 {
+            my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
+            my ($pre,$post) = ('','');
+            my $j = @print_words.elems;
+            if $longest_start > 0 {
+                $pre = @print_words[0..($longest_start-1)].join(':');
+            }
+            if $longest_end < $j-1 {
+                $post = @print_words[($longest_end+1)..($j-1)].join(':');
+            }
+            say ($pre ~ '::' ~ $post);
+        }
+    }
+    
     our sub ip_str(IP:D $ip --> Str:D) {
         if $ip.version == 4 {
             return $ip.octets.join: '.';
         } else {
-            return $ip.octets.map({sprintf("%04x", bytes_word($^a,$^b))}).join: ':';
+            my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
+            return @print_words.join: ':';
         }        
     }
 }
