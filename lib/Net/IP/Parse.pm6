@@ -155,15 +155,18 @@ my package EXPORT::DEFAULT {
         for $ip.octets -> $left_byte,$right_byte {
             if $left_byte == 0 && $right_byte == 0 {
                 $start = $i if $start == -1;
+                my ($end,$len) = ($i,$i - $start);
+                ($max_start,$max_end,$max_len) = ($start,$end,$len) if $len > $max_len;
             } else {
-                if $start != -1 {
-                    my ($end,$len) = ($i - 1,$i - 1 - $start);
-                    ($max_start,$max_end,$max_len) = ($start,$end,$len) if $len > $max_len;
-                    $start = -1;
-                }
+                $start = -1;
             }
             $i++;
         }
+        if $start != -1 {
+            my $len = 7 - $start;
+            ($max_start,$max_end,$max_len) = ($start,7,$len) if $len > $max_len;
+        }
+        
         if $max_len != 0 {
             my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
             my ($pre,$post) = ('','');
@@ -171,7 +174,7 @@ my package EXPORT::DEFAULT {
             $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
             return ($pre ~ '::' ~ $post);
         } else {
-            return $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
+            return $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))}).join(':');
         }
     }
     

@@ -128,13 +128,30 @@ lives-ok {
 
 lives-ok {
     my IP $ip = IP.new(addr=><1:0:0:1:0:0:0:1>);
-    say '1:0:0:1:0:0:0:1';
     my $compressed = ipv6_compress_str($ip);
-    say $compressed;
-}, 'valid string output';
+    is ($compressed eq '1:0:0:1::1'), True, 'compressed';
+}, 'valid compress';
 
 lives-ok {
     my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
     my $compressed = ipv6_compress_str($ip);
-    say $compressed;
-}, 'valid string output';
+    is ($compressed eq '2001:db8:a0b:12f0::1:1'), True, 'compressed';
+}, 'valid compress';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><1:1:0:0:0:0:0:0>);
+    my $compressed = ipv6_compress_str($ip);
+    is ($compressed eq '1:1::'), True, 'compressed';
+}, 'valid compress';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><0:0:0:0:0:0:0:1>);
+    my $compressed = ipv6_compress_str($ip);
+    is ($compressed eq '::1'), True, 'compressed';
+}, 'valid compress';
+
+lives-ok {
+    my IP $ip = IP.new(addr=><1:0:0:0:1:0:0:1>);
+    my $compressed = ipv6_compress_str($ip);
+    is ($compressed eq '1::1:0:0:1'), True, 'compressed';
+}, 'valid compress';
