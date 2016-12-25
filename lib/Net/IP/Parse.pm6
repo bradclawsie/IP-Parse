@@ -186,4 +186,60 @@ my package EXPORT::DEFAULT {
             return @print_words.join: ':';
         }        
     }
+
+    class CIDR {
+
+        has IP $.addr;
+        has IP $.prefix_addr;
+        has IP $.broadcast_addr;
+        has IP $.network_addr;
+        has IP $.wildcard_addr;
+
+        multi submethod BUILD(Str:D :$cidr) {
+            my Str @s = split('/',$cidr);
+            unless (@s.elems == 2 && @s[0] != '' && @s[1] != '') {
+                AddressError.new(input=>$cidr ~ "; bad cidr").throw;
+            }
+            my $prefix = (@s[1]).parse-base(10);
+            AddressError.new(input=>$cidr ~ "; bad cidr").throw unless $prefix ~~ Int;
+            self.BUILD(IP.new(addr=>@s[0]),prefix=>$prefix);
+        }
+
+        multi submethod BUILD(IP:D :$addr, UInt:D :$prefix) {
+            given $addr.version {
+                when 4 {
+                    if $prefix > 32 {
+                        AddressError.new(input=>$prefix ~ "; out of range for ipv4").throw;
+                    }
+                }
+                when 6 {
+                    if $prefix > 128 {
+                        AddressError.new(input=>$prefix ~ "; out of range for ipv6").throw;
+                    }
+                }
+                default {
+                    VersionError.new(input=>$addr.version ~ "; no version detected").throw;
+                }
+            }
+        }
+        
+        our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
+            my $bytes_len = $version == 4 ?? 4 !! 16;
+            my UInt8 @bytes[16];
+            @bytes[^16] = (loop { 0 });
+            my $div = $prefix div 8;
+            for 0..^$div -> $i {
+                @bytes[$i] = 255;
+            }
+            @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
+            given $version {
+                return Array[UInt8].new(@bytes[0..3]) when 4;
+                return Array[UInt8].new(@bytes) when 6;
+                default {
+                    VersionError.new(input=>$version ~ "; no version detected").throw;
+                }
+            }
+        }
+
+    }
 }
