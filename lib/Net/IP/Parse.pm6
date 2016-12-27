@@ -206,21 +206,20 @@ my package EXPORT::DEFAULT {
         }
 
         multi submethod BUILD(IP:D :$addr, UInt:D :$prefix) {
-            given $addr.version {
-                when 4 {
-                    if $prefix > 32 {
-                        AddressError.new(input=>$prefix ~ "; out of range for ipv4").throw;
-                    }
-                }
-                when 6 {
-                    if $prefix > 128 {
-                        AddressError.new(input=>$prefix ~ "; out of range for ipv6").throw;
-                    }
-                }
-                default {
-                    VersionError.new(input=>$addr.version ~ "; no version detected").throw;
-                }
+            my $octet_count = 4;
+            my $max_prefix = 32;
+            ($octet_count,$max_prefix) = (16,128) if $addr.version == 6;
+            AddressError.new(input=>$prefix ~ " out of range").throw if $prefix > $max_prefix;
+            my UInt8 @mask_octets = mask $addr.verion,$prefix;
+            my UInt8 @wildcard_octets[$octet_count];
+            my UInt8 @network_octets[$octet_count];
+            my UInt8 @broadcast_octets[$octet_count];
+            for 0..^$octet_count -> $i {
+                @wildcard_octets[$i] = 255 - @mask_octets[$i];
+                @network_octets[$i] = @mask_octets[$i] +& $addr.octets[$i];
+                @broadcast_octets[$i] = @wildcard_octets[$i] +| $addr.octets[$i];
             }
+            
         }
         
         our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
@@ -228,9 +227,7 @@ my package EXPORT::DEFAULT {
             my UInt8 @bytes[16];
             @bytes[^16] = (loop { 0 });
             my $div = $prefix div 8;
-            for 0..^$div -> $i {
-                @bytes[$i] = 255;
-            }
+            for 0..^$div -> $i { @bytes[$i] = 255; }
             @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
             given $version {
                 return Array[UInt8].new(@bytes[0..3]) when 4;
