@@ -195,6 +195,22 @@ my package EXPORT::DEFAULT {
         has IP $.network_addr;
         has IP $.wildcard_addr;
 
+        our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
+            my $bytes_len = $version == 4 ?? 4 !! 16;
+            my UInt8 @bytes[16];
+            @bytes[^16] = (loop { 0 });
+            my $div = $prefix div 8;
+            for 0..^$div -> $i { @bytes[$i] = 255; }
+            @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
+            given $version {
+                return Array[UInt8].new(@bytes[0..3]) when 4;
+                return Array[UInt8].new(@bytes) when 6;
+                default {
+                    VersionError.new(input=>$version ~ "; no version detected").throw;
+                }
+            }
+        }
+        
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
             unless (@s.elems == 2 && @s[0] != '' && @s[1] != '') {
@@ -219,24 +235,11 @@ my package EXPORT::DEFAULT {
                 @network_octets[$i] = @mask_octets[$i] +& $addr.octets[$i];
                 @broadcast_octets[$i] = @wildcard_octets[$i] +| $addr.octets[$i];
             }
-            
+            $!addr = $addr;
+            $!prefix_addr = IP.new(octets=>@mask_octets);
+            $!network_addr = IP.new(octets=>@network_octets);
+            $!wildcard_addr = IP.new(octets=>@wildcard_octets);
+            $!broadcast_addr = IP.new(octets=>@broadcast_octets);
         }
-        
-        our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
-            my $bytes_len = $version == 4 ?? 4 !! 16;
-            my UInt8 @bytes[16];
-            @bytes[^16] = (loop { 0 });
-            my $div = $prefix div 8;
-            for 0..^$div -> $i { @bytes[$i] = 255; }
-            @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
-            given $version {
-                return Array[UInt8].new(@bytes[0..3]) when 4;
-                return Array[UInt8].new(@bytes) when 6;
-                default {
-                    VersionError.new(input=>$version ~ "; no version detected").throw;
-                }
-            }
-        }
-
     }
 }
