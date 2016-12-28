@@ -155,3 +155,7 @@ lives-ok {
     my $compressed = ipv6_compress_str($ip);
     is ($compressed eq '1::1:0:0:1'), True, 'compressed';
 }, 'valid compress';
+
+lives-ok {
+    my CIDR $cidr = CIDR.new(cidr=>'8.8.8.8/16');
+}, 'valid cidr';

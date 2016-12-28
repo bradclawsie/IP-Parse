@@ -119,7 +119,7 @@ my package EXPORT::DEFAULT {
             }
         }
 
-        multi submethod BUILD(Int:D :@octets) {
+        multi submethod BUILD(Int:D :@octets) { 
             given @octets.elems {
                 when (4|16) {
                     AddressError.new(input=>@octets.gist ~ "; invalid octet").throw unless
@@ -213,12 +213,12 @@ my package EXPORT::DEFAULT {
         
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
-            unless (@s.elems == 2 && @s[0] != '' && @s[1] != '') {
+            unless (@s.elems == 2 && @s[0] ne '' && @s[1] ne '') {
                 AddressError.new(input=>$cidr ~ "; bad cidr").throw;
             }
             my $prefix = (@s[1]).parse-base(10);
             AddressError.new(input=>$cidr ~ "; bad cidr").throw unless $prefix ~~ Int;
-            self.BUILD(IP.new(addr=>@s[0]),prefix=>$prefix);
+            self.BUILD(addr=>IP.new(addr=>@s[0]),prefix=>$prefix);
         }
 
         multi submethod BUILD(IP:D :$addr, UInt:D :$prefix) {
@@ -226,7 +226,7 @@ my package EXPORT::DEFAULT {
             my $max_prefix = 32;
             ($octet_count,$max_prefix) = (16,128) if $addr.version == 6;
             AddressError.new(input=>$prefix ~ " out of range").throw if $prefix > $max_prefix;
-            my UInt8 @mask_octets = mask $addr.verion,$prefix;
+            my UInt8 @mask_octets = mask $addr.version,$prefix;
             my UInt8 @wildcard_octets[$octet_count];
             my UInt8 @network_octets[$octet_count];
             my UInt8 @broadcast_octets[$octet_count];
@@ -237,9 +237,9 @@ my package EXPORT::DEFAULT {
             }
             $!addr = $addr;
             $!prefix_addr = IP.new(octets=>@mask_octets);
-            $!network_addr = IP.new(octets=>@network_octets);
-            $!wildcard_addr = IP.new(octets=>@wildcard_octets);
-            $!broadcast_addr = IP.new(octets=>@broadcast_octets);
+            $!network_addr = IP.new(octets=>Array[Int].new(@network_octets));
+            $!wildcard_addr = IP.new(octets=>Array[Int].new(@wildcard_octets));
+            $!broadcast_addr = IP.new(octets=>Array[Int].new(@broadcast_octets));
         }
     }
 }
