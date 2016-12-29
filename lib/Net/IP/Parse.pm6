@@ -131,6 +131,10 @@ my package EXPORT::DEFAULT {
                 default { AddressError.new(input=>@octets.gist ~ "; no version detected").throw; } 
             }
         }
+
+        method str(--> Str:D) {
+            return ip_str(self);
+        }
     }
 
     my sub cmp(IP $lhs, IP $rhs) of Bool:D is pure {

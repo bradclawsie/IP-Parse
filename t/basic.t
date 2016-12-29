@@ -158,4 +158,28 @@ lives-ok {
 
 lives-ok {
     my CIDR $cidr = CIDR.new(cidr=>'8.8.8.8/16');
-}, 'valid cidr';
+    my IP $addr = IP.new(addr=><8.8.8.8>);   
+    is ($addr ip== $cidr.addr), True, 'addr equal';
+    my IP $prefix_addr = IP.new(addr=><255.255.0.0>);
+    is ($prefix_addr ip== $cidr.prefix_addr), True, 'prefix equal';
+    my IP $wildcard_addr = IP.new(addr=><0.0.255.255>);
+    is ($wildcard_addr ip== $cidr.wildcard_addr), True, 'wildcard equal';
+    my IP $network_addr = IP.new(addr=><8.8.0.0>);
+    is ($network_addr ip== $cidr.network_addr), True, 'network equal';
+    my IP $broadcast_addr = IP.new(addr=><8.8.255.255>);
+    is ($broadcast_addr ip== $cidr.broadcast_addr), True, 'broadcast equal';
+}, 'valid ipv4 cidr';
+
+lives-ok {
+    my CIDR $cidr = CIDR.new(cidr=>'2001:db8::/32');
+    my IP $addr = IP.new(addr=>'2001:0db8:0000:0000:0000:0000:0000:0000');
+    is ($addr ip== $cidr.addr), True, 'addr equal';
+    my IP $prefix_addr = IP.new(addr=>'ffff:ffff::');
+    is ($prefix_addr ip== $cidr.prefix_addr), True, 'prefix equal';
+    my IP $wildcard_addr = IP.new(addr=>'0:0:ffff:ffff:ffff:ffff:ffff:ffff');
+    is ($wildcard_addr ip== $cidr.wildcard_addr), True, 'wildcard equal';
+    my IP $network_addr = IP.new(addr=>'2001:db8:0:0:0:0:0:0');
+    is ($network_addr ip== $cidr.network_addr), True, 'network equal';
+    my IP $broadcast_addr = IP.new(addr=>'2001:db8:ffff:ffff:ffff:ffff:ffff:ffff');
+    is ($broadcast_addr ip== $cidr.broadcast_addr), True, 'broadcast equal';
+}, 'valid ipv6 cidr';
