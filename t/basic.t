@@ -65,6 +65,60 @@ lives-ok {
     is ($word == $t), False, 'word to bytes not to word'
 }, 'bad bytes detected';
 
+dies-ok {
+    my @b = ipv6_octets_right_align (1,2);
+}, 'detected undersized array';
+
+dies-ok {
+    my @b = ipv6_octets_right_align (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17);
+}, 'detected oversized array';
+
+dies-ok {
+    my @b = ipv6_octets_right_align (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,9999999);
+}, 'detected bad array element';
+
+lives-ok {
+    my @in = (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0);
+    my @expected = (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12);
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
+lives-ok {
+    my @in = (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12);
+    my @expected = (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12);
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
+lives-ok {
+    my @in = (12,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12);
+    my @expected = (12,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12);
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
+lives-ok {
+    my @in = (12,0,30,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    my @expected = (0,0,0,0,0,0,0,0,0,0,0,0,12,0,30,0);
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
+lives-ok {
+    my @in = (0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0);
+    my @expected = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1);
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
+lives-ok {
+    my @in = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0);
+    my @expected = @in;
+    my @out = ipv6_octets_right_align @in;
+    is ((@out Z== @expected).all.so), True, 'output is expected';
+}, 'right align';
+
 lives-ok {
     my IP $ip = IP.new(addr=><::1>);
     is ($ip.version == 6), True, 'is ipv6';

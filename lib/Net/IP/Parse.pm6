@@ -56,8 +56,8 @@ my package EXPORT::DEFAULT {
     # (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0) - > (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12)
     our sub ipv6_octets_right_align(Array:D[UInt8] $octets where $octets.elems == 16 --> Array:D[UInt8]) is pure {
         my ($n,$m) = (0,0);
-        for @($octets) -> $l,$r { $n = $n+1 if ($l != 0 || $r != 0); $n++ };
-        return Array[UInt8].new(@($octets).rotate($n*2));
+        for @($octets) -> $l,$r { $m = $n+1 if ($l != 0 || $r != 0); $n++ };
+        return Array[UInt8].new(@($octets).rotate($m*2));
     }
     
     # Parse and return just the octets part of an IPv6 address.
@@ -173,13 +173,13 @@ my package EXPORT::DEFAULT {
         }
     }
     
-    our sub ip_str(IP:D $ip --> Str:D) {
+    our sub ip_str(IP:D $ip --> Str:D) is pure {
         if $ip.version == 4 {
             return $ip.octets.join: '.';
         } else {
             my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
             return @print_words.join: ':';
-        }        
+        }
     }
 
     class CIDR {
@@ -236,5 +236,14 @@ my package EXPORT::DEFAULT {
             $!wildcard_addr = IP.new(octets=>Array[Int].new(@wildcard_octets));
             $!broadcast_addr = IP.new(octets=>Array[Int].new(@broadcast_octets));
         }
+
+        method str(--> Str:D) {
+            return cidr_str(self);
+        }
     }
+
+    our sub cidr_str(CIDR:D $cidr --> Str:D) {
+        return $cidr.addr.str ~ '/' ~ $cidr.prefix;
+    }
+
 }
