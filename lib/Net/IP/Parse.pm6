@@ -25,67 +25,73 @@ my package EXPORT::DEFAULT {
     our sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) is pure {
         return (($left_byte +& 0xFF ) +< 8) +| ($right_byte +& 0xFF);
     }
+
+    # Parse and return just the octets part of an IPv4 address.
+    our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) is pure {
+        my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
+        AddressError.new(input=>$addr).throw unless so $matches;
+        my UInt8 @octets = $matches.list.map({.Int});
+        return @octets;
+    }
+    
+    # Parse and return a 16-byte (UInt8) array from a substring
+    # of an uncompressed IPv6 address string.
+    our sub ipv6_octets_substring(Str:D $addr --> Array:D[UInt8]) is pure {
+        my UInt8 @bytes[16];
+        @bytes[^16] = (loop { 0 });
+        return Array[UInt8].new(@bytes) if $addr eq '';
+        my $i = 0;
+        for $addr.split: ':' -> $word_str {
+            my $word := $word_str.parse-base(16);
+            if $word !~~ Int || !(0 <= $word <= 0xffff) {
+                AddressError.new(input => "malformed word:'" ~ $word_str ~ "' ($addr)").throw;
+            }
+            (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
+        }
+        return Array[UInt8].new(@bytes);
+    }
+
+    # Right-aligned in this sense means shifting the bytes to be right-aligned in
+    # a 16 byte array. For example:
+    # (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0) - > (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12)
+    our sub ipv6_octets_right_align(Array:D[UInt8] $octets where $octets.elems == 16 --> Array:D[UInt8]) is pure {
+        my ($n,$m) = (0,0);
+        for @($octets) -> $l,$r { $n = $n+1 if ($l != 0 || $r != 0); $n++ };
+        return Array[UInt8].new(@($octets).rotate($n*2));
+    }
+    
+    # Parse and return just the octets part of an IPv6 address.
+    our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) is pure {
+        my UInt8 @bytes[16];
+        @bytes[^16] = (loop { 0 });
+        given ($addr.comb: '::').Int {
+            when 0 {
+                return ipv6_octets_substring $addr;
+            }
+            when 1 {                    
+                my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
+                
+                if ($left_words_str.split(':').map({$_ if $_ ne ''}).elems +
+                    $right_words_str.split(':').map({$_ if $_ ne ''}).elems) > 6 {
+                    AddressError.new(input => "bad segment count:" ~ $addr).throw;
+                }
+                
+                my UInt8 @left_bytes[16] = ipv6_octets_substring $left_words_str;
+                my UInt8 @right_bytes[16] = ipv6_octets_right_align ipv6_octets_substring $right_words_str;
+                for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
+                
+                # Remove size constraint. Necessary to allow this to be input
+                # to functions that accept Array[UInt8].                  
+                return Array[UInt8].new(@bytes);
+            }
+            default { AddressError.new(payload => "bad addr on split: $addr").throw; } 
+        } 
+    }
     
     class IP {
         has UInt8 @.octets;
         has IPVersion $.version = Nil;
         has Str $.zone_id = Nil;
-
-        # Parse and return just the octets part of an IPv4 address.
-        our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) is pure {
-            my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
-            AddressError.new(input=>$addr).throw unless so $matches;
-            my UInt8 @octets = $matches.list.map({.Int});
-            return @octets;
-        }
-
-        # Parse and return a 16-byte (UInt8) array from a substring
-        # of an uncompressed IPv6 address string.
-        our sub ipv6_octets_substring(Str:D $addr --> Array:D[UInt8]) is pure {
-            my UInt8 @bytes[16];
-            @bytes[^16] = (loop { 0 });
-            return Array[UInt8].new(@bytes) if $addr eq '';
-            my $i = 0;
-            for $addr.split: ':' -> $word_str {
-                my $word := $word_str.parse-base(16);
-                if $word !~~ Int || !(0 <= $word <= 0xffff) {
-                    AddressError.new(input => "malformed word:'" ~ $word_str ~ "' ($addr)").throw;
-                }
-                (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
-            }
-            return Array[UInt8].new(@bytes);
-        }
-
-        # Parse and return just the octets part of an IPv6 address.
-        our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) is pure {
-            my UInt8 @bytes[16];
-            @bytes[^16] = (loop { 0 });
-            given ($addr.comb: '::').Int {
-                when 0 {
-                    return ipv6_octets_substring $addr;
-                }
-                when 1 {                    
-                    my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
-                    
-                    if ($left_words_str.split(':').map({$_ if $_ ne ''}).elems +
-                        $right_words_str.split(':').map({$_ if $_ ne ''}).elems) > 6 {
-                        AddressError.new(input => "bad segment count:" ~ $addr).throw;
-                    }
-                    
-                    my @left_bytes = ipv6_octets_substring $left_words_str;
-                    my @right_bytes = ipv6_octets_substring $right_words_str;
-                    my ($n,$m) = (0,0);
-                    for @right_bytes -> $l,$r { $n = $n+1 if ($l != 0 || $r != 0); $n++ };
-                    @right_bytes = @right_bytes.rotate($n*2);              
-                    for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
-                    
-                    # Remove size constraint. Necessary to allow this to be input
-                    # to functions that accept Array[UInt8].                  
-                    return Array[UInt8].new(@bytes);
-                }
-                default { AddressError.new(payload => "bad addr on split: $addr").throw; } 
-            } 
-        }
         
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
