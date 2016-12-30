@@ -32,93 +32,51 @@ my package EXPORT::DEFAULT {
         has Str $.zone_id = Nil;
 
         # Parse and return just the octets part of an IPv4 address.
-        our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) {
+        our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) is pure {
             my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
             AddressError.new(input=>$addr).throw unless so $matches;
             my UInt8 @octets = $matches.list.map({.Int});
             return @octets;
         }
 
+        # Parse and return a 16-byte (UInt8) array from a substring
+        # of an uncompressed IPv6 address string.
+        our sub ipv6_octets_substring(Str:D $addr --> Array:D[UInt8]) is pure {
+            my UInt8 @bytes[16];
+            @bytes[^16] = (loop { 0 });
+            return Array[UInt8].new(@bytes) if $addr eq '';
+            my $i = 0;
+            for $addr.split: ':' -> $word_str {
+                my $word := $word_str.parse-base(16);
+                if $word !~~ Int || !(0 <= $word <= 0xffff) {
+                    AddressError.new(input => "malformed word:'" ~ $word_str ~ "' ($addr)").throw;
+                }
+                (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
+            }
+            return Array[UInt8].new(@bytes);
+        }
+
         # Parse and return just the octets part of an IPv6 address.
-        our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
+        our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) is pure {
             my UInt8 @bytes[16];
             @bytes[^16] = (loop { 0 });
             given ($addr.comb: '::').Int {
                 when 0 {
-                    my @words = $addr.split: ':';
-                    AddressError.new(input => "words count:$addr").throw if @words.elems != 8;
-                    my $i = 0;
-                    for @words -> $word_str {
-                        my $word := $word_str.parse-base(16);
-                        if $word ~~ Failure {
-                            AddressError.new(input => "malformed word:" ~ $word_str).throw;
-                        }
-                        my ($left_byte,$right_byte) = word_bytes $word;
-                        unless valid_octet $left_byte {
-                            AddressError.new(input => "bad byte:" ~ $left_byte).throw;
-                        }
-                        unless valid_octet $right_byte {
-                            AddressError.new(input => "bad byte:" ~ $right_byte).throw;
-                        }
-                        (@bytes[$i++],@bytes[$i++]) = ($left_byte,$right_byte);
-                    }
-                    # Remove size constraint. Necessary to allow this to be input
-                    # to functions that accept Array[UInt8].
-                    return Array[UInt8].new(@bytes); 
+                    return ipv6_octets_substring $addr;
                 }
-                when 1 {
-                    
+                when 1 {                    
                     my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
-                    my @left_words = $left_words_str.split: ':';
-                    my @right_words = $right_words_str.split: ':';
-                    if (@left_words.map({$_ if $_ ne ''}).elems +
-                        @right_words.map({$_ if $_ ne ''}).elems) > 6 {
-                        AddressError.new(input => "too many words in abbrev:" ~ $addr.gist).throw;
+                    
+                    if ($left_words_str.split(':').map({$_ if $_ ne ''}).elems +
+                        $right_words_str.split(':').map({$_ if $_ ne ''}).elems) > 6 {
+                        AddressError.new(input => "bad segment count:" ~ $addr).throw;
                     }
-
-                    my UInt8 @left_bytes[16];
-                    @left_bytes[^16] = (loop { 0 });
-
-                    my $i = 0;
-                    for @left_words -> $word_str {
-                        if $word_str ne '' {
-                            my $word := $word_str.parse-base(16);
-                            if $word ~~ Failure {
-                                AddressError.new(input => "malformed word $word_str").throw;
-                            }
-                            my ($left_byte,$right_byte) = word_bytes $word;
-                            unless valid_octet $left_byte {
-                                AddressError.new(input => "bad byte:" ~ $left_byte).throw;
-                            }
-                            unless valid_octet $right_byte {
-                                AddressError.new(input => "bad byte:" ~ $right_byte).throw;
-                            }                            
-                            (@left_bytes[$i++],@left_bytes[$i++]) = ($left_byte,$right_byte);
-                        }
-                    }
-
-                    my UInt8 @right_bytes[16];
-                    @right_bytes[^16] = (loop { 0 });
-                   
-                    $i = 15;
-                    for @right_words.reverse -> $word_str {
-                        if $word_str ne '' {
-                            my $word = $word_str.parse-base(16);
-                            if $word ~~ Failure {
-                                AddressError.new(input => "malformed word $word_str").throw;
-                            }
-                            my ($left_byte,$right_byte) = word_bytes $word;
-                            unless valid_octet $left_byte {
-                                AddressError.new(input => "bad byte:" ~ $left_byte).throw;
-                            }
-                            unless valid_octet $right_byte {
-                                AddressError.new(input => "bad byte:" ~ $right_byte).throw;
-                            }                            
-                            @right_bytes[$i--] = $right_byte;
-                            @right_bytes[$i--] = $left_byte;
-                        }
-                    }
-
+                    
+                    my @left_bytes = ipv6_octets_substring $left_words_str;
+                    my @right_bytes = ipv6_octets_substring $right_words_str;
+                    my ($n,$m) = (0,0);
+                    for @right_bytes -> $l,$r { $n = $n+1 if ($l != 0 || $r != 0); $n++ };
+                    @right_bytes = @right_bytes.rotate($n*2);              
                     for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
                     
                     # Remove size constraint. Necessary to allow this to be input
