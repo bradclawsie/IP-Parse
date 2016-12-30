@@ -157,6 +157,16 @@ lives-ok {
 }, 'valid compress';
 
 lives-ok {
+    my $s = '::ffff:ffff:ffff:ffff:ffff:ffff';
+    my IP $ip = IP.new(addr=>$s);
+    my IP $ref = IP.new(addr=>'0:0:ffff:ffff:ffff:ffff:ffff:ffff');
+    is ($ip ip== $ref), True, 'equivalent with reference';
+    my $compressed = ipv6_compress_str($ip);
+    is ($compressed eq $s), True, 'compressed';
+    
+}, 'valid compress';
+
+lives-ok {
     my CIDR $cidr = CIDR.new(cidr=>'8.8.8.8/16');
     my IP $addr = IP.new(addr=><8.8.8.8>);   
     is ($addr ip== $cidr.addr), True, 'addr equal';

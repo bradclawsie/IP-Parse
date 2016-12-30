@@ -51,47 +51,74 @@ my package EXPORT::DEFAULT {
                     for @words -> $word_str {
                         my $word := $word_str.parse-base(16);
                         if $word ~~ Failure {
-                            AddressError.new(input => "malformed word $word_str").throw;
+                            AddressError.new(input => "malformed word:" ~ $word_str).throw;
                         }
-                        (@bytes[$i++],@bytes[$i++]) =  word_bytes $word;
+                        my ($left_byte,$right_byte) = word_bytes $word;
+                        unless valid_octet $left_byte {
+                            AddressError.new(input => "bad byte:" ~ $left_byte).throw;
+                        }
+                        unless valid_octet $right_byte {
+                            AddressError.new(input => "bad byte:" ~ $right_byte).throw;
+                        }
+                        (@bytes[$i++],@bytes[$i++]) = ($left_byte,$right_byte);
                     }
                     # Remove size constraint. Necessary to allow this to be input
                     # to functions that accept Array[UInt8].
                     return Array[UInt8].new(@bytes); 
                 }
                 when 1 {
-                    my UInt8 @left_bytes[16];
-                    @left_bytes[^16] = (loop { 0 });
+                    
                     my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
                     my @left_words = $left_words_str.split: ':';
                     my @right_words = $right_words_str.split: ':';
-                    if (@left_words.elems + @right_words.elems) > 6 {
-                        AddressError.new(input => "too many words in abbrev: $addr").throw;
+                    if (@left_words.map({$_ if $_ ne ''}).elems +
+                        @right_words.map({$_ if $_ ne ''}).elems) > 6 {
+                        AddressError.new(input => "too many words in abbrev:" ~ $addr.gist).throw;
                     }
+
+                    my UInt8 @left_bytes[16];
+                    @left_bytes[^16] = (loop { 0 });
+
                     my $i = 0;
                     for @left_words -> $word_str {
                         if $word_str ne '' {
                             my $word := $word_str.parse-base(16);
                             if $word ~~ Failure {
-                                AddressError.new(payload => "malformed word $word_str").throw;
+                                AddressError.new(input => "malformed word $word_str").throw;
                             }
-                            (@left_bytes[$i++],@left_bytes[$i++]) =  word_bytes $word;
+                            my ($left_byte,$right_byte) = word_bytes $word;
+                            unless valid_octet $left_byte {
+                                AddressError.new(input => "bad byte:" ~ $left_byte).throw;
+                            }
+                            unless valid_octet $right_byte {
+                                AddressError.new(input => "bad byte:" ~ $right_byte).throw;
+                            }                            
+                            (@left_bytes[$i++],@left_bytes[$i++]) = ($left_byte,$right_byte);
                         }
                     }
+
                     my UInt8 @right_bytes[16];
                     @right_bytes[^16] = (loop { 0 });
+                   
                     $i = 15;
                     for @right_words.reverse -> $word_str {
                         if $word_str ne '' {
                             my $word = $word_str.parse-base(16);
                             if $word ~~ Failure {
-                                AddressError.new(payload => "malformed word $word_str").throw;
+                                AddressError.new(input => "malformed word $word_str").throw;
                             }
                             my ($left_byte,$right_byte) = word_bytes $word;
+                            unless valid_octet $left_byte {
+                                AddressError.new(input => "bad byte:" ~ $left_byte).throw;
+                            }
+                            unless valid_octet $right_byte {
+                                AddressError.new(input => "bad byte:" ~ $right_byte).throw;
+                            }                            
                             @right_bytes[$i--] = $right_byte;
                             @right_bytes[$i--] = $left_byte;
                         }
                     }
+
                     for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
                     
                     # Remove size constraint. Necessary to allow this to be input
