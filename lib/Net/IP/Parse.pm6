@@ -110,19 +110,11 @@ my package EXPORT::DEFAULT {
             }
         }
 
-        multi submethod BUILD(Int:D :@octets) { 
-            given @octets.elems {
-                when (4|16) {
-                    AddressError.new(input=>@octets.gist ~ "; invalid octet").throw unless
-                    @octets.map(&valid_octet).all.so;
-                    @!octets = @octets;
-                    $!version = 4 when 4;
-                    $!version = 6 when 16;
-                }
-                default { AddressError.new(input=>@octets.gist ~ "; no version detected").throw; } 
-            }
+        multi submethod BUILD(Array:D[UInt8] :$octets where $octets.elems == 4|16) {
+            @!octets = @($octets);
+            $!version = $octets.elems == 4 ?? 4 !! 6;
         }
-
+        
         method str(--> Str:D) {
             return ip_str(self);
         }
@@ -182,6 +174,22 @@ my package EXPORT::DEFAULT {
         }
     }
 
+    our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
+        my $bytes_len = $version == 4 ?? 4 !! 16;
+        my UInt8 @bytes[16];
+        @bytes[^16] = (loop { 0 });
+        my $div = $prefix div 8;
+        for 0..^$div -> $i { @bytes[$i] = 255; }
+        @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
+        given $version {
+            return Array[UInt8].new(@bytes[0..3]) when 4;
+            return Array[UInt8].new(@bytes) when 6;
+            default {
+                VersionError.new(input=>$version ~ "; no version detected").throw;
+            }
+        }
+    }
+    
     class CIDR {
 
         has IP $.addr;
@@ -189,22 +197,6 @@ my package EXPORT::DEFAULT {
         has IP $.broadcast_addr;
         has IP $.network_addr;
         has IP $.wildcard_addr;
-
-        our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
-            my $bytes_len = $version == 4 ?? 4 !! 16;
-            my UInt8 @bytes[16];
-            @bytes[^16] = (loop { 0 });
-            my $div = $prefix div 8;
-            for 0..^$div -> $i { @bytes[$i] = 255; }
-            @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
-            given $version {
-                return Array[UInt8].new(@bytes[0..3]) when 4;
-                return Array[UInt8].new(@bytes) when 6;
-                default {
-                    VersionError.new(input=>$version ~ "; no version detected").throw;
-                }
-            }
-        }
         
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
@@ -240,6 +232,9 @@ my package EXPORT::DEFAULT {
         method str(--> Str:D) {
             return cidr_str(self);
         }
+
+        # `in` will determine if an IP address is "in" a CIDR.
+        method in { ... }
     }
 
     our sub cidr_str(CIDR:D $cidr --> Str:D) {

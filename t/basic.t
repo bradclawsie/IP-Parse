@@ -1,15 +1,52 @@
 use v6;
 use Test;
 use Net::IP::Parse;
+use Subsets::Common;
 
 lives-ok {
-    my IP $ip = IP.new(addr=><8.8.8.8>);
+    my IP $ip = IP.new(addr=><1.2.3.4>);
+    is ($ip.version == 4), True, 'is ipv4';
+    my IP $ip2 = IP.new(octets=>Array[UInt8].new(1,2,3,4));
+    is ($ip ip== $ip2), True, 'constructors equivalent';
+}, 'valid';
+
+lives-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4));
     is ($ip.version == 4), True, 'is ipv4';
 }, 'valid';
 
 lives-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
+    is ($ip.version == 6), True, 'is ipv6';
+}, 'valid';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3));
+}, 'undersized octets array';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,256));
+}, 'overflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(-1,2,3,255));
+}, 'underflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5));
+}, 'oversized octets array';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15));
+}, 'undersized octets array';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17));
+}, 'oversized octets array';
+
+lives-ok {
     my $ip = IP.new(addr=><1.2.3.4>);
-    is (ip_str($ip) eq '1.2.3.4'), True, 'str is valid';
+    is ($ip.str eq ip_str($ip) eq '1.2.3.4'), True, 'str is valid';
 }, 'valid string output';
 
 lives-ok {
