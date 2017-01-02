@@ -15,6 +15,21 @@ lives-ok {
     is ($ip.version == 4), True, 'is ipv4';
 }, 'valid';
 
+# dfea 223 234
+
+lives-ok {
+    my IP $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
+    is ($ip.version == 6), True, 'is ipv6';
+    my IP $ip2 = IP.new(octets=>Array[UInt8].new(223,234,223,234,223,234,223,234,223,234,223,234,223,234,223,234));
+    is ($ip2.version == 6), True, 'is ipv6';
+    is ($ip ip== $ip2), True, 'constructors equivalent';
+}, 'valid';
+
+lives-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
+    is ($ip.version == 6), True, 'is ipv6';
+}, 'valid';
+
 lives-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
     is ($ip.version == 6), True, 'is ipv6';
@@ -51,13 +66,28 @@ lives-ok {
 }, 'valid string output';
 
 lives-ok {
+    my $s = 'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea';
+    my IP $ip = IP.new(addr=>$s);
+    is ($ip.str eq $s), True, 'str is valid';
+}, 'valid';
+
+lives-ok {
     my $ip0 = IP.new(addr=>'8.8.8.8');
     my $ip1 = IP.new(addr=>'8.8.8.0');
     is ($ip0 ip== $ip0), True, 'addrs are equivalent';
     is ($ip0 ip== $ip1), False, 'addrs are not equivalent';
     is ($ip0 ip>= $ip1), True, 'lhs gt rhs';
     is ($ip1 ip<= $ip0), True, 'lhs gt rhs';
-}, 'valid comparisons';
+}, 'valid ipv4 comparisons';
+
+lives-ok {
+    my $ip0 = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
+    my $ip1 = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:df00');
+    is ($ip0 ip== $ip0), True, 'addrs are equivalent';
+    is ($ip0 ip== $ip1), False, 'addrs are not equivalent';
+    is ($ip0 ip>= $ip1), True, 'lhs gt rhs';
+    is ($ip1 ip<= $ip0), True, 'lhs gt rhs';
+}, 'valid ipv6 comparisons';
 
 lives-ok {
     my $ip = IP.new(addr=>'8.8.8.8');
