@@ -22,6 +22,7 @@ lives-ok {
 
 dies-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3));
+    my IP $ips = IP.new(addr=><1.2.3>);
 }, 'undersized octets array';
 
 dies-ok {
