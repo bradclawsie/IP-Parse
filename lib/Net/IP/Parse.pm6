@@ -120,25 +120,29 @@ my package EXPORT::DEFAULT {
         }
         
         method str(--> Str:D) {
-            return ip_str(self);
+            return octets_str @!octets;
         }
     }
 
-    my sub cmp(IP $lhs, IP $rhs) of Bool:D is pure {
+    my sub cmp(IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
         my $l := ($lhs.version == 4) ?? 4 !! 16;
         return $lhs.octets == $l && $rhs.octets == $l;
     }
     
-    our sub infix:<< ip== >> (IP $lhs, IP $rhs) of Bool:D is pure {
+    our sub infix:<< ip== >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
         return cmp($lhs,$rhs) && so ($lhs.octets Z== $rhs.octets).all;
     }
 
-    our sub infix:<< ip<= >> (IP $lhs, IP $rhs) of Bool:D is pure {
+    our sub infix:<< ip<= >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
         return cmp($lhs,$rhs) && so ($lhs.octets Z<= $rhs.octets).all;
     }
 
-    our sub infix:<< ip>= >> (IP $lhs, IP $rhs) of Bool:D is pure {
+    our sub infix:<< ip>= >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
+    }
+
+    my sub fmt_ipv6_octets(Array:D[UInt8] $octets --> Str:D) {
+        return @($octets).map({sprintf("%x", bytes_word($^a,$^b))}).join(':');
     }
 
     our sub ipv6_compress_str(IP:D $ip where $ip.version == 6 --> Str:D) {
@@ -165,16 +169,15 @@ my package EXPORT::DEFAULT {
             $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
             return ($pre ~ '::' ~ $post);
         } else {
-            return $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))}).join(':');
+            return fmt_ipv6_octets $ip.octets;
         }
     }
     
-    our sub ip_str(IP:D $ip --> Str:D) is pure {
-        if $ip.version == 4 {
-            return $ip.octets.join: '.';
+    our sub octets_str(Array:D[UInt8] $octets where $octets.elems == 4|16 --> Str:D) {
+        if @($octets).elems == 4 {
+            return @($octets).join: '.';
         } else {
-            my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
-            return @print_words.join: ':';
+            return fmt_ipv6_octets $octets;
         }
     }
 
@@ -236,13 +239,13 @@ my package EXPORT::DEFAULT {
         method str(--> Str:D) {
             return cidr_str(self);
         }
-
-        # `in` will determine if an IP address is "in" a CIDR.
-        method in { ... }
     }
 
-    our sub cidr_str(CIDR:D $cidr --> Str:D) {
+    our sub infix:<< in_cidr >> (IP:D $ip, CIDR:D $cidr where $ip.version == $cidr.addr.version --> Bool:D) is pure {
+        return $ip ip>= $cidr.network_addr && $ip ip<= $cidr.broadcast_addr;
+    }
+
+    our sub cidr_str(CIDR:D $cidr --> Str:D) is pure {
         return $cidr.addr.str ~ '/' ~ $cidr.prefix;
     }
-
 }
