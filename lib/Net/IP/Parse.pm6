@@ -141,6 +141,9 @@ my package EXPORT::DEFAULT {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
+    # `fmt_ipv6_octets` formats the bytes for ipv6-style formatting but does
+    # not check the arg length (or even that its length must be even), so
+    # it must be a private function.
     my sub fmt_ipv6_octets(Array:D[UInt8] $octets --> Str:D) {
         return @($octets).map({sprintf("%x", bytes_word($^a,$^b))}).join(':');
     }
