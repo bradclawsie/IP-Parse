@@ -15,8 +15,6 @@ lives-ok {
     is ($ip.version == 4), True, 'is ipv4';
 }, 'valid';
 
-# dfea 223 234
-
 lives-ok {
     my IP $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
     is ($ip.version == 6), True, 'is ipv6';
@@ -114,6 +112,26 @@ dies-ok {
     my $ip = IP.new(addr=><8.8.8.-1>);
 }, 'address underflow detected';
 
+dies-ok {
+    my $ip = IP.new(addr=>'8.8.88');
+}, 'detected invalid string constructor';
+
+dies-ok {
+    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
+}, 'bad number of address chunks detected';
+
+dies-ok {
+    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea');
+}, 'bad number of address chunks detected';
+
+dies-ok {
+    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:fffff');
+}, 'address overflow detected';
+
+dies-ok {
+    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:-1');
+}, 'address underflow detected';
+
 lives-ok {
     my $t = 0xdfea;
     my ($l,$r) = word_bytes $t;
@@ -123,6 +141,11 @@ lives-ok {
 
 dies-ok {
     my $t = 65536;
+    my ($l,$r) = word_bytes $t;
+}, 'word overflow';
+
+dies-ok {
+    my $t = -1;
     my ($l,$r) = word_bytes $t;
 }, 'word overflow';
 

@@ -6,12 +6,12 @@ unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.1>;
 my package EXPORT::DEFAULT {
     class VersionError is Exception {
         has $.input;
-        method message() { "no IP version detected:" ~ $.input; }
+        method message() { 'no IP version detected: ' ~ $.input; }
     }
     
     class AddressError is Exception {
         has $.input;
-        method message() { "bad address detected:" ~ $.input; }
+        method message() { 'bad address detected: ' ~ $.input; }
     }
 
     subset IPVersion of Int where * == 4|6;
@@ -36,17 +36,21 @@ my package EXPORT::DEFAULT {
     
     # Parse and return a 16-byte (UInt8) array from a substring
     # of an uncompressed IPv6 address string.
-    our sub ipv6_octets_substring(Str:D $addr --> Array:D[UInt8]) is pure {
+    our sub ipv6_octets_substring(Str:D $addr, UInt $expected? --> Array:D[UInt8]) is pure {
         my UInt8 @bytes[16];
         @bytes[^16] = (loop { 0 });
         return Array[UInt8].new(@bytes) if $addr eq '';
-        my $i = 0;
+        my ($i,$j) = (0,0);
         for $addr.split: ':' -> $word_str {
             my $word := $word_str.parse-base(16);
             if $word !~~ Int || !(0 <= $word <= 0xffff) {
-                AddressError.new(input => "malformed word:'" ~ $word_str ~ "' ($addr)").throw;
+                AddressError.new(input => "malformed word: $word_str from $addr").throw;
             }
             (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
+            $j++;
+        }
+        if $expected && $j != $expected {
+            AddressError.new(input => "split $addr = $i, not $expected").throw;
         }
         return Array[UInt8].new(@bytes);
     }
@@ -66,14 +70,14 @@ my package EXPORT::DEFAULT {
         @bytes[^16] = (loop { 0 });
         given ($addr.comb: '::').Int {
             when 0 {
-                return ipv6_octets_substring $addr;
+                return ipv6_octets_substring $addr, 8;
             }
             when 1 {                    
                 my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
                 
                 if ($left_words_str.split(':').map({$_ if $_ ne ''}).elems +
                     $right_words_str.split(':').map({$_ if $_ ne ''}).elems) > 6 {
-                    AddressError.new(input => "bad segment count:" ~ $addr).throw;
+                    AddressError.new(input => "bad segment count: $addr").throw;
                 }
                 
                 my UInt8 @left_bytes[16] = ipv6_octets_substring $left_words_str;
@@ -100,13 +104,13 @@ my package EXPORT::DEFAULT {
                 my ($routable_part,$zone_id_part) = $addr.split: '%',2;
                 if $zone_id_part ~~ Str {
                     if $zone_id_part eq '' {
-                        AddressError.new(input=>$addr ~ "; malformed zone").throw;
+                        AddressError.new(input=>"malformed zone from $addr").throw;
                     }
                     $!zone_id = $zone_id_part
                 }
                 self.BUILD(octets=>ipv6_octets $routable_part);
             } else {
-                AddressError.new(input=>$addr ~ "; no version detected").throw;
+                AddressError.new(input=>"no version detected from $addr").throw;
             }
         }
 
@@ -185,7 +189,7 @@ my package EXPORT::DEFAULT {
             return Array[UInt8].new(@bytes[0..3]) when 4;
             return Array[UInt8].new(@bytes) when 6;
             default {
-                VersionError.new(input=>$version ~ "; no version detected").throw;
+                VersionError.new(input=>"no version detected for $version").throw;
             }
         }
     }
@@ -201,10 +205,10 @@ my package EXPORT::DEFAULT {
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
             unless (@s.elems == 2 && @s[0] ne '' && @s[1] ne '') {
-                AddressError.new(input=>$cidr ~ "; bad cidr").throw;
+                AddressError.new(input=>"bad cidr $cidr").throw;
             }
             my $prefix = (@s[1]).parse-base(10);
-            AddressError.new(input=>$cidr ~ "; bad cidr").throw unless $prefix ~~ Int;
+            AddressError.new(input=>"bad cidr $cidr").throw unless $prefix ~~ Int;
             self.BUILD(addr=>IP.new(addr=>@s[0]),prefix=>$prefix);
         }
 
@@ -212,7 +216,7 @@ my package EXPORT::DEFAULT {
             my $octet_count = 4;
             my $max_prefix = 32;
             ($octet_count,$max_prefix) = (16,128) if $addr.version == 6;
-            AddressError.new(input=>$prefix ~ " out of range").throw if $prefix > $max_prefix;
+            AddressError.new(input=>"prefix $prefix out of range").throw if $prefix > $max_prefix;
             my UInt8 @mask_octets = mask $addr.version,$prefix;
             my UInt8 @wildcard_octets[$octet_count];
             my UInt8 @network_octets[$octet_count];
