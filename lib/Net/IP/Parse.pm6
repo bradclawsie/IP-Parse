@@ -16,18 +16,18 @@ my package EXPORT::DEFAULT {
 
     subset IPVersion of Int where * == 4|6;
 
-    my sub valid_octet(Int:D $o --> Bool:D) is pure { return 0 <= $o <= 255; }
+    my sub valid_octet(Int:D $o --> Bool:D) { return 0 <= $o <= 255; }
     
-    our sub word_bytes(UInt16:D $word --> List:D[UInt8]) is pure {
+    our sub word_bytes(UInt16:D $word --> List:D[UInt8]) {
         return (($word +> 8) +& 0xFF),($word +& 0xFF); 
     }
     
-    our sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) is pure {
+    our sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) {
         return (($left_byte +& 0xFF ) +< 8) +| ($right_byte +& 0xFF);
     }
 
     # Parse and return just the octets part of an IPv4 address.
-    our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) is pure {
+    our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) {
         my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
         AddressError.new(input=>$addr).throw unless so $matches;
         my UInt8 @octets = $matches.list.map({.Int});
@@ -36,7 +36,7 @@ my package EXPORT::DEFAULT {
     
     # Parse and return a 16-byte (UInt8) array from a substring
     # of an uncompressed IPv6 address string.
-    our sub ipv6_octets_substring(Str:D $addr, UInt $expected? --> Array:D[UInt8]) is pure {
+    our sub ipv6_octets_substring(Str:D $addr, UInt $expected? --> Array:D[UInt8]) {
         my UInt8 @bytes[16];
         @bytes[^16] = (loop { 0 });
         return Array[UInt8].new(@bytes) if $addr eq '';
@@ -58,14 +58,14 @@ my package EXPORT::DEFAULT {
     # Right-aligned in this sense means shifting the bytes to be right-aligned in
     # a 16 byte array. For example:
     # (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0) - > (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12)
-    our sub ipv6_octets_right_align(Array:D[UInt8] $octets where $octets.elems == 16 --> Array:D[UInt8]) is pure {
+    our sub ipv6_octets_right_align(Array:D[UInt8] $octets where $octets.elems == 16 --> Array:D[UInt8]) {
         my ($n,$m) = (0,0);
         for @($octets) -> $l,$r { $m = $n+1 if ($l != 0 || $r != 0); $n++ };
         return Array[UInt8].new(@($octets).rotate($m*2));
     }
     
     # Parse and return just the octets part of an IPv6 address.
-    our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) is pure {
+    our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
         my UInt8 @bytes[16];
         @bytes[^16] = (loop { 0 });
         given ($addr.comb: '::').Int {
@@ -124,20 +124,20 @@ my package EXPORT::DEFAULT {
         }
     }
 
-    my sub cmp(IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
+    my sub cmp(IP:D $lhs, IP:D $rhs --> Bool:D) {
         my $l := ($lhs.version == 4) ?? 4 !! 16;
         return $lhs.octets == $l && $rhs.octets == $l;
     }
     
-    our sub infix:<< ip== >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
+    our sub infix:<< ip== >> (IP:D $lhs, IP:D $rhs --> Bool:D) {
         return cmp($lhs,$rhs) && so ($lhs.octets Z== $rhs.octets).all;
     }
 
-    our sub infix:<< ip<= >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
+    our sub infix:<< ip<= >> (IP:D $lhs, IP:D $rhs --> Bool:D) {
         return cmp($lhs,$rhs) && so ($lhs.octets Z<= $rhs.octets).all;
     }
 
-    our sub infix:<< ip>= >> (IP:D $lhs, IP:D $rhs --> Bool:D) is pure {
+    our sub infix:<< ip>= >> (IP:D $lhs, IP:D $rhs --> Bool:D) {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
@@ -244,11 +244,11 @@ my package EXPORT::DEFAULT {
         }
     }
 
-    our sub infix:<< in_cidr >> (IP:D $ip, CIDR:D $cidr where $ip.version == $cidr.addr.version --> Bool:D) is pure {
+    our sub infix:<< in_cidr >> (IP:D $ip, CIDR:D $cidr where $ip.version == $cidr.addr.version --> Bool:D) {
         return $ip ip>= $cidr.network_addr && $ip ip<= $cidr.broadcast_addr;
     }
 
-    our sub cidr_str(CIDR:D $cidr --> Str:D) is pure {
+    our sub cidr_str(CIDR:D $cidr --> Str:D) {
         return $cidr.addr.str ~ '/' ~ $cidr.prefix;
     }
 }
