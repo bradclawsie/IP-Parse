@@ -86,10 +86,13 @@ my package EXPORT::DEFAULT {
         }
 
         multi submethod BUILD(Array:D[UInt8] :$octets where $octets.elems == 4|16) {
-            @!octets = Array[UInt8].new((0..^$octets.elems));
+            my $l := $octets.elems;
+            my @a = Array[UInt8].new((0..^$l));
+            for 0..^$l -> $j { @a[$j] = 0; }
+            @!octets = @a;
             my $i = 0;
-            for @($octets) -> $octet { @!octets[$i++] := $octet; }
-            $!version := $octets.elems == 4 ?? 4 !! 6;
+            for @($octets) -> $octet { @!octets[$i++] := $octet; }            
+            $!version := $l == 4 ?? 4 !! 6;
         }
         
         method str(--> Str:D) {
