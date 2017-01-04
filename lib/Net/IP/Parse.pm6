@@ -16,27 +16,17 @@ my package EXPORT::DEFAULT {
 
     subset IPVersion of Int where * == 4|6;
 
-    my sub valid_octet(Int:D $o --> Bool:D) { return 0 <= $o <= 255; }
-    
-    our sub word_bytes(UInt16:D $word --> List:D[UInt8]) {
-        return (($word +> 8) +& 0xFF),($word +& 0xFF); 
+    my sub word_bytes(UInt16:D $word --> List:D[UInt8]) {
+        return (($word +> 8) +& 0xff),($word +& 0xff); 
     }
     
-    our sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) {
-        return (($left_byte +& 0xFF ) +< 8) +| ($right_byte +& 0xFF);
+    my sub bytes_word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) {
+        return (($left_byte +& 0xff ) +< 8) +| ($right_byte +& 0xff);
     }
 
-    # Parse and return just the octets part of an IPv4 address.
-    our sub ipv4_octets(Str:D $addr --> Array:D[UInt8]) {
-        my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
-        AddressError.new(input=>$addr).throw unless so $matches;
-        my UInt8 @octets = $matches.list.map({.Int});
-        return @octets;
-    }
-    
     # Parse and return a 16-byte (UInt8) array from a substring
     # of an uncompressed IPv6 address string.
-    our sub ipv6_octets_substring(Str:D $addr, UInt $expected? --> Array:D[UInt8]) {
+    my sub ipv6_octets_substring(Str:D $addr, UInt $expected? --> Array:D[UInt8]) {
         my UInt8 @bytes[16];
         @bytes[^16] = (loop { 0 });
         return Array[UInt8].new(@bytes) if $addr eq '';
@@ -55,17 +45,8 @@ my package EXPORT::DEFAULT {
         return Array[UInt8].new(@bytes);
     }
 
-    # Right-aligned in this sense means shifting the bytes to be right-aligned in
-    # a 16 byte array. For example:
-    # (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0) - > (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12)
-    our sub ipv6_octets_right_align(Array:D[UInt8] $octets where $octets.elems == 16 --> Array:D[UInt8]) {
-        my ($n,$m) = (0,0);
-        for @($octets) -> $l,$r { $m = $n+1 if ($l != 0 || $r != 0); $n++ };
-        return Array[UInt8].new(@($octets).rotate($m*2));
-    }
-    
     # Parse and return just the octets part of an IPv6 address.
-    our sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
+    my sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
         my UInt8 @bytes[16];
         @bytes[^16] = (loop { 0 });
         given ($addr.comb: '::').Int {
@@ -81,14 +62,23 @@ my package EXPORT::DEFAULT {
                 }
                 
                 my UInt8 @left_bytes[16] = ipv6_octets_substring $left_words_str;
-                my UInt8 @right_bytes[16] = ipv6_octets_right_align ipv6_octets_substring $right_words_str;
+                my UInt8 @right_bytes[16] = ipv6_octets_substring $right_words_str;
+
+                # rotate @right_bytes so that all words (byte pairs) are aligned to the right
+                # of the sequence...i.e.:
+                # (255,240,128,12,0,0,0,0,0,0,0,0,0,0,0,0) - >
+                # (0,0,0,0,0,0,0,0,0,0,0,0,255,240,128,12)
+                my ($n,$m) = (0,0);
+                for @right_bytes -> $l,$r { $m = $n+1 if ($l != 0 || $r != 0); $n++ };
+                @right_bytes = @right_bytes.rotate($m*2);
+            
                 for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
                 
                 # Remove size constraint. Necessary to allow this to be input
                 # to functions that accept Array[UInt8].                  
                 return Array[UInt8].new(@bytes);
             }
-            default { AddressError.new(payload => "bad addr on split: $addr").throw; } 
+            default { AddressError.new(input => "bad addr on split: $addr").throw; } 
         } 
     }
     
@@ -99,7 +89,10 @@ my package EXPORT::DEFAULT {
         
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
-                self.BUILD(octets=>ipv4_octets $addr);
+                my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
+                AddressError.new(input=>$addr).throw unless so $matches;
+                my UInt8 @octets = $matches.list.map({.UInt});
+                self.BUILD(octets=>@octets);
             } elsif ($addr ~~ /\:/) {
                 my ($routable_part,$zone_id_part) = $addr.split: '%',2;
                 if $zone_id_part ~~ Str {
@@ -120,10 +113,46 @@ my package EXPORT::DEFAULT {
         }
         
         method str(--> Str:D) {
-            return octets_str @!octets;
+            if $!version == 4 {
+                return @!octets.join: '.';
+            } else {
+                return @!octets.map({sprintf("%x", bytes_word($^a,$^b))}).join: ':';
+            }
+        }
+
+        method compress_str(--> Str:D) {
+            if $!version == 4 {
+                return self.str;
+            } else {
+                my ($i,$max_start,$max_end,$max_len,$start) = (0,0,0,0,-1);
+                for @!octets -> $left_byte,$right_byte {
+                    if $left_byte == 0 && $right_byte == 0 {
+                        $start = $i if $start == -1;
+                        my ($end,$len) = ($i,$i - $start);
+                        ($max_start,$max_end,$max_len) = ($start,$end,$len) if $len > $max_len;
+                    } else {
+                        $start = -1;
+                    }
+                    $i++;
+                }
+                if $start != -1 {
+                    my $len = 7 - $start;
+                    ($max_start,$max_end,$max_len) = ($start,7,$len) if $len > $max_len;
+                }
+
+                my @print_words = @!octets.map({sprintf("%x", bytes_word($^a,$^b))});
+                if $max_len != 0 {                    
+                    my ($pre,$post) = ('','');
+                    $pre = @print_words[0..($max_start-1)].join(':') if $max_start > 0;
+                    $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
+                    return ($pre ~ '::' ~ $post);
+                } else {
+                    return @print_words.join: ':';
+                }
+            }
         }
     }
-
+    
     my sub cmp(IP:D $lhs, IP:D $rhs --> Bool:D) {
         my $l := ($lhs.version == 4) ?? 4 !! 16;
         return $lhs.octets == $l && $rhs.octets == $l;
@@ -141,68 +170,10 @@ my package EXPORT::DEFAULT {
         return cmp($lhs,$rhs) && so ($lhs.octets Z>= $rhs.octets).all;
     }
 
-    # `fmt_ipv6_octets` formats the bytes for ipv6-style formatting but does
-    # not check the arg length (or even that its length must be even), so
-    # it must be a private function.
-    my sub fmt_ipv6_octets(Array:D[UInt8] $octets --> Str:D) {
-        return @($octets).map({sprintf("%x", bytes_word($^a,$^b))}).join(':');
-    }
-
-    our sub ipv6_compress_str(IP:D $ip where $ip.version == 6 --> Str:D) {
-        my ($i,$max_start,$max_end,$max_len,$start) = (0,0,0,0,-1);
-        for $ip.octets -> $left_byte,$right_byte {
-            if $left_byte == 0 && $right_byte == 0 {
-                $start = $i if $start == -1;
-                my ($end,$len) = ($i,$i - $start);
-                ($max_start,$max_end,$max_len) = ($start,$end,$len) if $len > $max_len;
-            } else {
-                $start = -1;
-            }
-            $i++;
-        }
-        if $start != -1 {
-            my $len = 7 - $start;
-            ($max_start,$max_end,$max_len) = ($start,7,$len) if $len > $max_len;
-        }
-        
-        if $max_len != 0 {
-            my @print_words = $ip.octets.map({sprintf("%x", bytes_word($^a,$^b))});
-            my ($pre,$post) = ('','');
-            $pre = @print_words[0..($max_start-1)].join(':') if $max_start > 0;
-            $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
-            return ($pre ~ '::' ~ $post);
-        } else {
-            return fmt_ipv6_octets $ip.octets;
-        }
-    }
-    
-    our sub octets_str(Array:D[UInt8] $octets where $octets.elems == 4|16 --> Str:D) {
-        if @($octets).elems == 4 {
-            return @($octets).join: '.';
-        } else {
-            return fmt_ipv6_octets $octets;
-        }
-    }
-
-    our sub mask(IPVersion:D $version, UInt:D $prefix --> Array:D[UInt8]) {
-        my $bytes_len = $version == 4 ?? 4 !! 16;
-        my UInt8 @bytes[16];
-        @bytes[^16] = (loop { 0 });
-        my $div = $prefix div 8;
-        for 0..^$div -> $i { @bytes[$i] = 255; }
-        @bytes[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
-        given $version {
-            return Array[UInt8].new(@bytes[0..3]) when 4;
-            return Array[UInt8].new(@bytes) when 6;
-            default {
-                VersionError.new(input=>"no version detected for $version").throw;
-            }
-        }
-    }
-    
     class CIDR {
 
-        has IP $.addr;
+        has UInt $.prefix;
+        has IP $.addr;       
         has IP $.prefix_addr;
         has IP $.broadcast_addr;
         has IP $.network_addr;
@@ -223,7 +194,15 @@ my package EXPORT::DEFAULT {
             my $max_prefix = 32;
             ($octet_count,$max_prefix) = (16,128) if $addr.version == 6;
             AddressError.new(input=>"prefix $prefix out of range").throw if $prefix > $max_prefix;
-            my UInt8 @mask_octets = mask $addr.version,$prefix;
+
+            # calculate mask
+            my UInt8 @b[16];
+            @b[^16] = (loop { 0 });
+            my $div = $prefix div 8;
+            for 0..^$div -> $i { @b[$i] = 255; }
+            @b[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
+            
+            my UInt8 @mask_octets[$octet_count] = $addr.version == 4 ?? @b[0..3] !! @b;
             my UInt8 @wildcard_octets[$octet_count];
             my UInt8 @network_octets[$octet_count];
             my UInt8 @broadcast_octets[$octet_count];
@@ -233,6 +212,7 @@ my package EXPORT::DEFAULT {
                 @broadcast_octets[$i] = @wildcard_octets[$i] +| $addr.octets[$i];
             }
             $!addr = $addr;
+            $!prefix = $prefix;
             $!prefix_addr = IP.new(octets=>@mask_octets);
             $!network_addr = IP.new(octets=>Array[Int].new(@network_octets));
             $!wildcard_addr = IP.new(octets=>Array[Int].new(@wildcard_octets));
@@ -240,15 +220,11 @@ my package EXPORT::DEFAULT {
         }
 
         method str(--> Str:D) {
-            return cidr_str(self);
+            return $!addr.str ~ '/' ~ $!prefix;
         }
     }
 
     our sub infix:<< in_cidr >> (IP:D $ip, CIDR:D $cidr where $ip.version == $cidr.addr.version --> Bool:D) {
         return $ip ip>= $cidr.network_addr && $ip ip<= $cidr.broadcast_addr;
-    }
-
-    our sub cidr_str(CIDR:D $cidr --> Str:D) {
-        return $cidr.addr.str ~ '/' ~ $cidr.prefix;
     }
 }
