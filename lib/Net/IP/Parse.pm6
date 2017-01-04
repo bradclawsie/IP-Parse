@@ -6,12 +6,12 @@ unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.1>;
 my package EXPORT::DEFAULT {
     class VersionError is Exception {
         has $.input;
-        method message() { 'no IP version detected: ' ~ $.input; }
+        method message() { 'IP version error: ' ~ $.input; }
     }
     
     class AddressError is Exception {
         has $.input;
-        method message() { 'bad address detected: ' ~ $.input; }
+        method message() { 'address error: ' ~ $.input; }
     }
 
     subset IPVersion of Int where * == 4|6;
