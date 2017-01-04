@@ -37,7 +37,7 @@ my package EXPORT::DEFAULT {
             }
             when 1 {                    
                 my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
-                my sub f(Str:D $s --> Seq:D) { return ($s.split: ':').grep: { .chars > 0 }; }
+                my sub f(Str:D $s --> Seq:D) { return ($s.split: ':').grep: {.chars > 0}; }
                 @left_words_strs = f $left_words_str;
                 @right_words_strs = f $right_words_str;
                 if @left_words_strs.elems + @right_words_strs.elems > 6 {
@@ -67,9 +67,9 @@ my package EXPORT::DEFAULT {
         
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
-                my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS($addr);
+                my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS: $addr;
                 AddressError.new(input=>$addr).throw unless so $matches;
-                my UInt8 @octets = $matches.list.map({.UInt});
+                my UInt8 @octets = $matches.list.map: {.UInt};
                 self.BUILD(octets=>@octets);
             } elsif ($addr ~~ /\:/) {
                 my ($routable_part,$zone_id_part) = $addr.split: '%',2;
@@ -94,7 +94,7 @@ my package EXPORT::DEFAULT {
             if $!version == 4 {
                 return @!octets.join: '.';
             } else {
-                return @!octets.map({sprintf("%x", bytes_word($^a,$^b))}).join: ':';
+                return (@!octets.map: {sprintf("%x", bytes_word($^a,$^b))}).join: ':';
             }
         }
 
@@ -118,12 +118,12 @@ my package EXPORT::DEFAULT {
                     ($max_start,$max_end,$max_len) = ($start,7,$len) if $len > $max_len;
                 }
 
-                my @print_words = @!octets.map({sprintf("%x", bytes_word($^a,$^b))});
+                my @print_words = @!octets.map: {sprintf("%x", bytes_word($^a,$^b))};
                 if $max_len != 0 {                    
                     my ($pre,$post) = ('','');
-                    $pre = @print_words[0..($max_start-1)].join(':') if $max_start > 0;
-                    $post = @print_words[($max_end+1)..7].join(':') if $max_end < 8;
-                    return ($pre ~ '::' ~ $post);
+                    $pre = @print_words[0..($max_start-1)].join: ':' if $max_start > 0;
+                    $post = @print_words[($max_end+1)..7].join: ':' if $max_end < 8;
+                    return $pre ~ '::' ~ $post;
                 } else {
                     return @print_words.join: ':';
                 }
@@ -192,9 +192,9 @@ my package EXPORT::DEFAULT {
             $!addr = $addr;
             $!prefix = $prefix;
             $!prefix_addr = IP.new(octets=>@mask_octets);
-            $!network_addr = IP.new(octets=>Array[Int].new(@network_octets));
-            $!wildcard_addr = IP.new(octets=>Array[Int].new(@wildcard_octets));
-            $!broadcast_addr = IP.new(octets=>Array[Int].new(@broadcast_octets));
+            $!network_addr = IP.new(octets=>@network_octets);
+            $!wildcard_addr = IP.new(octets=>@wildcard_octets);
+            $!broadcast_addr = IP.new(octets=>@broadcast_octets);
         }
 
         method str(--> Str:D) {
