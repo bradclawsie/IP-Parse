@@ -71,7 +71,9 @@ my package EXPORT::DEFAULT {
                 my ($n,$m) = (0,0);
                 for @right_bytes -> $l,$r { $m = $n+1 if ($l != 0 || $r != 0); $n++ };
                 @right_bytes = @right_bytes.rotate($m*2);
-            
+
+                # now merge these arrays to expose the sequence of zeros in the
+                # middle represented by '::'.
                 for ^16 -> $i { @bytes[$i] = @left_bytes[$i] +| @right_bytes[$i] }
                 
                 # Remove size constraint. Necessary to allow this to be input
