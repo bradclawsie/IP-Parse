@@ -77,7 +77,7 @@ my package EXPORT::DEFAULT {
                     if $zone_id_part eq '' {
                         AddressError.new(input=>"malformed zone from $addr").throw;
                     }
-                    $!zone_id = $zone_id_part
+                    $!zone_id := $zone_id_part
                 }
                 self.BUILD(octets=>ipv6_octets $routable_part);
             } else {
@@ -86,8 +86,10 @@ my package EXPORT::DEFAULT {
         }
 
         multi submethod BUILD(Array:D[UInt8] :$octets where $octets.elems == 4|16) {
-            @!octets = @($octets);
-            $!version = $octets.elems == 4 ?? 4 !! 6;
+            @!octets = Array[UInt8].new((0..^$octets.elems));
+            my $i = 0;
+            for @($octets) -> $octet { @!octets[$i++] := $octet; }
+            $!version := $octets.elems == 4 ?? 4 !! 6;
         }
         
         method str(--> Str:D) {
@@ -189,12 +191,12 @@ my package EXPORT::DEFAULT {
                 @network_octets[$i] = @mask_octets[$i] +& $addr.octets[$i];
                 @broadcast_octets[$i] = @wildcard_octets[$i] +| $addr.octets[$i];
             }
-            $!addr = $addr;
-            $!prefix = $prefix;
-            $!prefix_addr = IP.new(octets=>@mask_octets);
-            $!network_addr = IP.new(octets=>@network_octets);
-            $!wildcard_addr = IP.new(octets=>@wildcard_octets);
-            $!broadcast_addr = IP.new(octets=>@broadcast_octets);
+            $!addr := $addr;
+            $!prefix := $prefix;
+            $!prefix_addr := IP.new(octets=>@mask_octets);
+            $!network_addr := IP.new(octets=>@network_octets);
+            $!wildcard_addr := IP.new(octets=>@wildcard_octets);
+            $!broadcast_addr := IP.new(octets=>@broadcast_octets);
         }
 
         method str(--> Str:D) {
