@@ -11,11 +11,6 @@ lives-ok {
 }, 'valid';
 
 lives-ok {
-    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4));
-    is ($ip.version == 4), True, 'is ipv4';
-}, 'valid';
-
-lives-ok {
     my IP $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
     is ($ip.version == 6), True, 'is ipv6';
     my IP $ip2 = IP.new(octets=>Array[UInt8].new(223,234,223,234,223,234,223,234,223,234,223,234,223,234,223,234));
@@ -23,18 +18,11 @@ lives-ok {
     is ($ip ip== $ip2), True, 'constructors equivalent';
 }, 'valid';
 
-lives-ok {
-    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
-    is ($ip.version == 6), True, 'is ipv6';
-}, 'valid';
-
-lives-ok {
-    my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
-    is ($ip.version == 6), True, 'is ipv6';
-}, 'valid';
-
 dies-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3));
+}, 'undersized octets array';
+
+dies-ok {
     my IP $ips = IP.new(addr=><1.2.3>);
 }, 'undersized octets array';
 
@@ -43,7 +31,15 @@ dies-ok {
 }, 'overflow octet';
 
 dies-ok {
+    my IP $ip = IP.new(addr=><1.2.3.256>);
+}, 'overflow octet';
+
+dies-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(-1,2,3,255));
+}, 'underflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(addr=><-1.2.3.255>);
 }, 'underflow octet';
 
 dies-ok {
@@ -51,11 +47,39 @@ dies-ok {
 }, 'oversized octets array';
 
 dies-ok {
+    my IP $ip = IP.new(addr=><1.2.3.4.5>);
+}, 'oversized octets array';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(-1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
+}, 'underflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(addr=>'ffff:-1::ffff');
+}, 'underflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(octets=>Array[UInt8].new(256,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));
+}, 'overflow octet';
+
+dies-ok {
+    my IP $ip = IP.new(addr=>'ffff0:1::ffff');
+}, 'overflow octet';
+
+dies-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15));
 }, 'undersized octets array';
 
 dies-ok {
+    my IP $ip = IP.new(addr=>'ffff:ffff')
+}, 'undersized octets array';
+
+dies-ok {
     my IP $ip = IP.new(octets=>Array[UInt8].new(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17));
+}, 'oversized octets array';
+
+dies-ok {
+    my IP $ip = IP.new(addr=>'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff')
 }, 'oversized octets array';
 
 lives-ok {
@@ -67,7 +91,7 @@ lives-ok {
     my $s = 'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea';
     my IP $ip = IP.new(addr=>$s);
     is ($ip.str eq $s), True, 'str is valid';
-}, 'valid';
+}, 'valid string output';
 
 lives-ok {
     my $ip0 = IP.new(addr=>'8.8.8.8');
@@ -88,59 +112,22 @@ lives-ok {
 }, 'valid ipv6 comparisons';
 
 lives-ok {
-    my $ip = IP.new(addr=>'8.8.8.8');
-    is ($ip.version == 4), True, 'is ipv4';
-}, 'valid string constructor';
-
-dies-ok {
-    my $ip = IP.new(addr=>'8.8.88');
-}, 'detected invalid string constructor';
-
-dies-ok {
-    my $ip = IP.new(addr=><8.8.8.8.8>);
-}, 'bad number of address chunks detected';
-
-dies-ok {
-    my $ip = IP.new(addr=><8.8.8>);
-}, 'bad number of address chunks detected';
-
-dies-ok {
-    my $ip = IP.new(addr=><8.8.8.256>);
-}, 'address overflow detected';
-
-dies-ok {
-    my $ip = IP.new(addr=><8.8.8.-1>);
-}, 'address underflow detected';
-
-dies-ok {
-    my $ip = IP.new(addr=>'8.8.88');
-}, 'detected invalid string constructor';
-
-dies-ok {
-    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea:dfea');
-}, 'bad number of address chunks detected';
-
-dies-ok {
-    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea');
-}, 'bad number of address chunks detected';
-
-dies-ok {
-    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:fffff');
-}, 'address overflow detected';
-
-dies-ok {
-    my $ip = IP.new(addr=>'dfea:dfea:dfea:dfea:dfea:dfea:dfea:-1');
-}, 'address underflow detected';
-
-lives-ok {
     my IP $ip = IP.new(addr=><::1>);
     is ($ip.version == 6), True, 'is ipv6';
 }, 'valid';
 
+sub array_eq(@a, @b) {
+    return False if @a.elems != @b.elems;
+    for 0..^@a.elems -> $i {
+        return False if @a[$i] != @b[$i];
+    }
+    return True;
+}
+
 lives-ok {
     my IP $ip = IP.new(addr=><1::>);
-    my @octets = 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0;
-    is (($ip.version == 6) && ($ip.octets == @octets)), True, 'is ipv6';
+    my @octets = 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0;
+    is (($ip.version == 6) && (array_eq $ip.octets, @octets)), True, 'is ipv6';
 }, 'valid';
 
 lives-ok {
@@ -152,7 +139,7 @@ lives-ok {
 lives-ok {
     my IP $ip = IP.new(addr=><1:2:3:4:5:6:7:8>);
     my @octets = 0,1,0,2,0,3,0,4,0,5,0,6,0,7,0,8;
-    is (($ip.version == 6) && ($ip.octets == @octets)), True, 'is ipv6';
+    is (($ip.version == 6) && (array_eq $ip.octets, @octets)), True, 'is ipv6';
 }, 'valid';
 
 dies-ok {
