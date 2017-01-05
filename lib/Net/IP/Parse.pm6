@@ -24,42 +24,6 @@ my package EXPORT::DEFAULT {
         return (($left_byte +& 0xff ) +< 8) +| ($right_byte +& 0xff);
     }
 
-    # Parse and return just the octets part of an IPv6 address.
-    my sub ipv6_octets(Str:D $addr --> Array:D[UInt8]) {
-        my UInt8 @bytes[16];
-        @bytes[^16] = (loop { 0 });
-        my (Str @left_words_strs, Str @right_words_strs);
-
-        given ($addr.comb: '::').Int {
-            when 0 {
-                @left_words_strs = $addr.split: ':';
-                AddressError.new(input => "addr len: $addr").throw if @left_words_strs.elems != 8;
-            }
-            when 1 {                    
-                my ($left_words_str,$right_words_str) = $addr.split: '::', 2;
-                my sub f(Str:D $s --> Seq:D) { return ($s.split: ':').grep: {.chars > 0}; }
-                @left_words_strs = f $left_words_str;
-                @right_words_strs = f $right_words_str;
-                if @left_words_strs.elems + @right_words_strs.elems > 6 {
-                    AddressError.new(input => "bad segment count: $addr").throw;
-                }
-            }
-            default { AddressError.new(input => "bad addr on split: $addr").throw; }
-        }
-
-        my ($i,$j) = (0,15);
-        for @left_words_strs -> $word_str {
-            my UInt16 $word = $word_str.parse-base: 16;
-            (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
-        }
-        for @right_words_strs.reverse -> $word_str {
-            my UInt16 $word = $word_str.parse-base: 16;
-            my ($l,$r) = word_bytes $word;
-            (@bytes[$j--],@bytes[$j--]) = ($r,$l);
-        }
-        return @bytes;
-    }
-    
     class IP {
         has UInt8 @.octets;
         has IPVersion $.version = Nil;
@@ -72,14 +36,47 @@ my package EXPORT::DEFAULT {
                 my UInt8 @octets = $matches.list.map: {.UInt};
                 self.BUILD(octets=>@octets);
             } elsif ($addr ~~ /\:/) {
-                my ($routable_part,$zone_id_part) = $addr.split: '%',2;
+                my ($octets_part,$zone_id_part) = $addr.split: '%',2;
                 if $zone_id_part ~~ Str {
                     if $zone_id_part eq '' {
                         AddressError.new(input=>"malformed zone from $addr").throw;
                     }
                     $!zone_id := $zone_id_part
                 }
-                self.BUILD(octets=>ipv6_octets $routable_part);
+
+                my UInt8 @bytes[16];
+                @bytes[^16] = (loop { 0 });
+                my (Str @left_words_strs, Str @right_words_strs);                
+                given ($octets_part.comb: '::').Int {
+                    when 0 {
+                        @left_words_strs = $octets_part.split: ':';
+                        if @left_words_strs.elems != 8 {
+                            AddressError.new(input => "bad addr len: $addr").throw;
+                        }
+                    }
+                    when 1 {
+                        my ($left_words_str,$right_words_str) = $octets_part.split: '::', 2;
+                        my sub f($s) { return ($s.split: ':').grep: {.chars > 0}; }
+                        @left_words_strs = f $left_words_str;
+                        @right_words_strs = f $right_words_str;
+                        if @left_words_strs.elems + @right_words_strs.elems > 6 {
+                            AddressError.new(input => "bad segment count: $addr").throw;
+                        }
+                    }
+                    default { AddressError.new(input => "bad addr on split: $addr").throw; }
+                }
+                
+                my ($i,$j) = (0,15);
+                for @left_words_strs -> $word_str {
+                    my UInt16 $word = $word_str.parse-base: 16;
+                    (@bytes[$i++],@bytes[$i++]) = word_bytes $word;
+                }
+                for @right_words_strs.reverse -> $word_str {
+                    my UInt16 $word = $word_str.parse-base: 16;
+                    my ($l,$r) = word_bytes $word;
+                    (@bytes[$j--],@bytes[$j--]) = ($r,$l);
+                }                
+                self.BUILD(octets=>@bytes)
             } else {
                 AddressError.new(input=>"no version detected from $addr").throw;
             }
