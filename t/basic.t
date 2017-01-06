@@ -1,7 +1,7 @@
 use v6;
 use Test;
-use Net::IP::Parse;
 use Subsets::Common;
+use Net::IP::Parse;
 
 lives-ok {
     my IP $ip = IP.new(addr=><1.2.3.4>);
@@ -299,3 +299,5 @@ dies-ok {
     my IP $addr = IP.new(addr=>'2001:0db8:0000:0000:0000:0000:0000:0000');
     is ($addr in_cidr $cidr), True, 'ip in cidr';
 }, 'detected version mismatch';
+
+done-testing;
