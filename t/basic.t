@@ -178,6 +178,8 @@ dies-ok {
 lives-ok {
     my IP $ip = IP.new(addr=><2001:db8:a0b:12f0::1:1>);
     is ($ip.str eq '2001:db8:a0b:12f0:0:0:1:1'), True, 'str is valid';
+    my IP $ip2 = IP.new(addr=><2001:db8:a0b:12f0:0:0:1:1>);
+    is ($ip ip== $ip2), True, 'equivalent forms';
 }, 'valid string output';
 
 lives-ok {
