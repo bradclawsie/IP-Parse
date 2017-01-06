@@ -7,6 +7,8 @@
     "provides" : {
         "Net::IP::Parse" : "lib/Net/IP/Parse.pm6"
     },
-    "depends" : [ ],
+    "depends" : [ "Subsets::Common" ],
+    "test-depends" : [ "Subsets::Common" ],
+    "build-depends" : [ "Subsets::Common" ],
     "source-url" : "git://github.com/bradclawsie/Net-IP-Parse.git"
 }
