@@ -75,19 +75,17 @@ Brad Clawsie (PAUSE:bradclawsie, email:brad@b7j0c.org)
 
 =end pod
 
-unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.1>;
+unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.2>;
 
 my package EXPORT::DEFAULT {
-    class VersionError is Exception {
-        has $.input;
-        method message() { 'IP version error: ' ~ $.input; }
-    }
     
-    class AddressError is Exception {
+    class X::Net::IP::Parse::Err is Exception {
         has $.input;
-        method message() { 'address error: ' ~ $.input; }
+        method message() { 'error: ' ~ $.input; }
     }
 
+    class X::Net::IP::Parse::Err is X::Net::IP::Parse::Err {}; # Backwards compatibility.
+    
     subset IPVersion of Int where * == 4|6;
 
     my sub word_bytes(UInt16:D $word --> List:D[UInt8]) {
@@ -106,14 +104,14 @@ my package EXPORT::DEFAULT {
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
                 my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS: $addr;
-                AddressError.new(input=>$addr).throw unless so $matches;
+                X::Net::IP::Parse::Err.new(input=>$addr).throw unless so $matches;
                 my UInt8 @octets = $matches.list.map: {.UInt};
                 self.BUILD(octets=>@octets);
             } elsif ($addr ~~ /\:/) {
                 my ($octets_part,$zone_id_part) = $addr.split: '%',2;
                 if $zone_id_part ~~ Str {
                     if $zone_id_part eq '' {
-                        AddressError.new(input=>"malformed zone from $addr").throw;
+                        X::Net::IP::Parse::Err.new(input=>"malformed zone from $addr").throw;
                     }
                     $!zone_id := $zone_id_part
                 }
@@ -125,7 +123,7 @@ my package EXPORT::DEFAULT {
                     when 0 {
                         @left_words_strs = $octets_part.split: ':';
                         if @left_words_strs.elems != 8 {
-                            AddressError.new(input => "bad addr len: $addr").throw;
+                            X::Net::IP::Parse::Err.new(input => "bad addr len: $addr").throw;
                         }
                     }
                     when 1 {
@@ -134,10 +132,10 @@ my package EXPORT::DEFAULT {
                         @left_words_strs = f $left_words_str;
                         @right_words_strs = f $right_words_str;
                         if @left_words_strs.elems + @right_words_strs.elems > 6 {
-                            AddressError.new(input => "bad segment count: $addr").throw;
+                            X::Net::IP::Parse::Err.new(input => "bad segment count: $addr").throw;
                         }
                     }
-                    default { AddressError.new(input => "bad addr on split: $addr").throw; }
+                    default { X::Net::IP::Parse::Err.new(input => "bad addr on split: $addr").throw; }
                 }
                 
                 my ($i,$j) = (0,15);
@@ -152,7 +150,7 @@ my package EXPORT::DEFAULT {
                 }                
                 self.BUILD(octets=>@bytes)
             } else {
-                AddressError.new(input=>"no version detected from $addr").throw;
+                X::Net::IP::Parse::Err.new(input=>"no version detected from $addr").throw;
             }
         }
 
@@ -236,10 +234,10 @@ my package EXPORT::DEFAULT {
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
             unless (@s.elems == 2 && @s[0] ne '' && @s[1] ne '') {
-                AddressError.new(input=>"bad cidr $cidr").throw;
+                X::Net::IP::Parse::Err.new(input=>"bad cidr $cidr").throw;
             }
             my $prefix = (@s[1]).parse-base(10);
-            AddressError.new(input=>"bad cidr $cidr").throw unless $prefix ~~ Int;
+            X::Net::IP::Parse::Err.new(input=>"bad cidr $cidr").throw unless $prefix ~~ Int;
             self.BUILD(addr=>IP.new(addr=>@s[0]),prefix=>$prefix);
         }
 
@@ -247,7 +245,7 @@ my package EXPORT::DEFAULT {
             my $octet_count = 4;
             my $max_prefix = 32;
             ($octet_count,$max_prefix) = (16,128) if $addr.version == 6;
-            AddressError.new(input=>"prefix $prefix out of range").throw if $prefix > $max_prefix;
+            X::Net::IP::Parse::Err.new(input=>"prefix $prefix out of range").throw if $prefix > $max_prefix;
 
             # calculate mask
             my UInt8 @b[16];
