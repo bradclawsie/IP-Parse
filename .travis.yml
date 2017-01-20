@@ -1,9 +1,12 @@
----
 sudo: false
+
 language: perl6
+
 perl6:
   - latest
-install:
+
+  install:
   - rakudobrew build zef
+  
 before_script:
-  - zef install Subsets::Common
+  - zef install Subsets::Common;
