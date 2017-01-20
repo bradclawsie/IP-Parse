@@ -84,7 +84,7 @@ my package EXPORT::DEFAULT {
         method message() { 'error: ' ~ $.input; }
     }
 
-    class X::Net::IP::Parse::Err is X::Net::IP::Parse::Err {}; # Backwards compatibility.
+    class AddressError is X::Net::IP::Parse::Err {}; # Backwards compatibility.
     
     subset IPVersion of Int where * == 4|6;
 
