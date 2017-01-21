@@ -68,6 +68,8 @@ say 'in' if ($ip5 in_cidr $cidr_ipv6);
 
 Brad Clawsie (PAUSE:bradclawsie, email:brad@b7j0c.org) 
 
-## LICENSE This module is licensed under the BSD license, see: https://b7j0c.org/stuff/license.txt
+## LICENSE 
+
+This module is licensed under the BSD license, see: https://b7j0c.org/stuff/license.txt
 
 
