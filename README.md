@@ -1,6 +1,8 @@
 [![Build Status](https://travis-ci.org/bradclawsie/Net-IP-Parse.png)](https://travis-ci.org/bradclawsie/Net-IP-Parse)
 
-# Net::IP::Parse - An IP type for Perl6.
+# Net::IP::Parse 
+
+An IP type for Perl6.
 
 ## DESCRIPTION
 
