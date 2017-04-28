@@ -1,6 +1,7 @@
 {
     "perl" : "6.*",
     "name" : "Net::IP::Parse",
+    "license" : "BSD-2-Clause",
     "version" : "0.0.3",
     "description" : "Types for IP addresses and manipulation methods.",
     "author" : "Brad Clawsie",
