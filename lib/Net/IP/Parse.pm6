@@ -100,10 +100,10 @@ my package EXPORT::DEFAULT {
         has UInt8 @.octets;
         has IPVersion $.version = Nil;
         has Str $.zone_id = Nil;
-        
+
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
-                my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS: $addr;
+                my $matches = (rx|^(?:::ffff:)?(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS: $addr;
                 X::Net::IP::Parse::Err.new(input=>$addr).throw unless so $matches;
                 my UInt8 @octets = $matches.list.map: {.UInt};
                 self.BUILD(octets=>@octets);
