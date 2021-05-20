@@ -4,6 +4,7 @@
     "version" : "0.0.4",
     "description" : "Types for IP addresses and manipulation methods.",
     "author" : "Brad Clawsie",
+    "auth" : "zef:b7j0c",
     "provides" : {
         "Net::IP::Parse" : "lib/Net/IP/Parse.rakumod"
     },
