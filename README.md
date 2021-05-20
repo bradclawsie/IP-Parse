@@ -1,4 +1,6 @@
-[![Build Status](https://travis-ci.org/bradclawsie/Net-IP-Parse.png)](https://travis-ci.org/bradclawsie/Net-IP-Parse)
+[![License:BSD](https://img.shields.io/badge/License-BSD-yellow.svg)](https://opensource.org/licenses/BSD-2-Clause)
+![ci](https://github.com/bradclawsie/Net-IP-Parse/workflows/ci/badge.svg)
+
 
 # Net::IP::Parse 
 
