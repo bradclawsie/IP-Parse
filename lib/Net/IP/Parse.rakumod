@@ -88,7 +88,7 @@ my package EXPORT::DEFAULT {
     
     subset IPVersion of Int where * == 4|6;
 
-    my sub word-bytes(UInt16:D $word --> List:D[UInt8]) {
+    my sub word-bytes(UInt16:D $word --> Positional:D[UInt8]) {
         return (($word +> 8) +& 0xff),($word +& 0xff); 
     }
     
