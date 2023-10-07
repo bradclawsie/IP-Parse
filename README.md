@@ -1,5 +1,5 @@
 [![License:BSD](https://img.shields.io/badge/License-BSD-yellow.svg)](https://opensource.org/licenses/BSD-2-Clause)
-[![ci](https://github.com/bradclawsie/Net-IP-Parse/workflows/ci/badge.svg)](https://github.com/bradclawsie/Net-IP-Parse/actions)
+[![ci](https://github.com/bradclawsie/Net-IP-Parse/workflows/test/badge.svg)](https://github.com/bradclawsie/Net-IP-Parse/actions)
 
 
 # Net::IP::Parse 
@@ -9,7 +9,7 @@ An IP type for Perl6.
 ## DESCRIPTION
 
 This library tries to fill a gap of a standard type for IP addresses that can
-be used in programs and other libraries. Preferrably Perl6 would ship with
+be used in programs and other libraries. Preferrably Raku would ship with
 a default implementation for this common type, but until then, this is one
 attempt at defining such a type.
 
@@ -70,10 +70,16 @@ say 'in' if ($ip5 in_cidr $cidr_ipv6);
 
 ## AUTHOR 
 
-Brad Clawsie (PAUSE:bradclawsie, email:brad@b7j0c.org) 
+Brad Clawsie (zef:bradclawsie, email:brad@b7j0c.org) 
 
-## LICENSE 
+## Notice
 
-This module is licensed under the BSD license, see: https://b7j0c.org/stuff/license.txt
+This repository was uploaded via `fez` under the username `b7j0c`,
+and later `bradclawsie`. This change was made so the username would match
+Github. Sorry for any confusion.
 
+## Installation
 
+```
+zef install Net::IP::Parse
+```

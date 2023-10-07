@@ -67,15 +67,13 @@ my CIDR $cidr_ipv6 = CIDR.new(cidr=>'2001:db8::/32');
 my IP $ip5 = IP.new(addr=>'2001:0db8:0000:0000:0000:0000:0000:0001');
 say 'in' if ($ip5 in_cidr $cidr_ipv6);
 
-=head1 AUTHOR 
+=head1 AUTHOR
 
-Brad Clawsie (PAUSE:bradclawsie, email:brad@b7j0c.org) 
-
-=head1 LICENSE This module is licensed under the BSD license, see: https://b7j0c.org/stuff/license.txt
+Brad Clawsie (zef:bradclawsie, email:brad@b7j0c.org)
 
 =end pod
 
-unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.3>;
+unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.5>;
 
 my package EXPORT::DEFAULT {
     

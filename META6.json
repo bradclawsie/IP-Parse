@@ -1,16 +1,16 @@
 {
     "perl" : "6.*",
     "name" : "Net::IP::Parse",
-    "version" : "0.0.4",
+    "version" : "0.0.5",
     "description" : "Types for IP addresses and manipulation methods.",
+    "auth" : "zef:bradclawsie",
     "author" : "Brad Clawsie",
-    "auth" : "zef:b7j0c",
     "provides" : {
         "Net::IP::Parse" : "lib/Net/IP/Parse.rakumod"
     },
     "depends" : [ "Subsets::Common" ],
     "test-depends" : [ "Subsets::Common" ],
     "build-depends" : [ "Subsets::Common" ],
-    "source-url" : "git://github.com/bradclawsie/Net-IP-Parse.git",
+    "source-url" : "https://github.com/bradclawsie/Net-IP-Parse.git",
     "license" : "BSD-2-Clause"
 }
