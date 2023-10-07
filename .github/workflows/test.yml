@@ -26,6 +26,8 @@ jobs:
           raku-version: ${{ matrix.raku-version }}
       - name: Install Dependencies
         run: zef install --/test --test-depends --deps-only .
+      - name: Force install TAP
+        run: zef install --force-install TAP
       - name: Install App::Prove6
         run: zef install --/test App::Prove6
       - name: Run Tests
