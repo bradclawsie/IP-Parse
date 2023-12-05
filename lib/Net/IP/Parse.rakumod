@@ -73,7 +73,7 @@ Brad Clawsie (zef:bradclawsie, email:brad@b7j0c.org)
 
 =end pod
 
-unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.5>;
+unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.6>;
 
 my package EXPORT::DEFAULT {
 
