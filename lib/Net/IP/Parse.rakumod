@@ -29,7 +29,7 @@ with determining if you instantiate a reserved or otherwise practically
 useless IP address, I leave this to you to determine.
 
 There is also support for a CIDR type which lets you stipulate network
-ranges. 
+ranges.
 
 The best set of examples for use can be found in the tests in `basic.t`
 in the repository with this library.
@@ -76,20 +76,20 @@ Brad Clawsie (zef:bradclawsie, email:brad@b7j0c.org)
 unit module Net::IP::Parse:auth<bradclawsie>:ver<0.0.5>;
 
 my package EXPORT::DEFAULT {
-    
+
     class X::Net::IP::Parse::Err is Exception {
         has $.input;
         method message() { 'error: ' ~ $.input; }
     }
 
     class AddressError is X::Net::IP::Parse::Err {}; # Backwards compatibility.
-    
+
     subset IPVersion of Int where * == 4|6;
 
     my sub word-bytes(UInt16:D $word --> Positional:D[UInt8]) {
-        return (($word +> 8) +& 0xff),($word +& 0xff); 
+        return (($word +> 8) +& 0xff),($word +& 0xff);
     }
-    
+
     my sub bytes-word(UInt8:D $left_byte, UInt8:D $right_byte --> UInt16:D) {
         return (($left_byte +& 0xff ) +< 8) +| ($right_byte +& 0xff);
     }
@@ -98,7 +98,7 @@ my package EXPORT::DEFAULT {
         has UInt8 @.octets;
         has IPVersion $.version = Nil;
         has Str $.zone_id = Nil;
-        
+
         multi submethod BUILD(Str:D :$addr) {
             if ($addr ~~ /\./) {
                 my $matches = (rx|^(\d+).(\d+).(\d+).(\d+)$|).ACCEPTS: $addr;
@@ -116,7 +116,7 @@ my package EXPORT::DEFAULT {
 
                 my UInt8 @bytes[16];
                 @bytes[^16] = (loop { 0 });
-                my (Str @left_words_strs, Str @right_words_strs);                
+                my (Str @left_words_strs, Str @right_words_strs);
                 given ($octets_part.comb: '::').Int {
                     when 0 {
                         @left_words_strs = $octets_part.split: ':';
@@ -135,7 +135,7 @@ my package EXPORT::DEFAULT {
                     }
                     default { X::Net::IP::Parse::Err.new(input => "bad addr on split: $addr").throw; }
                 }
-                
+
                 my ($i,$j) = (0,15);
                 for @left_words_strs -> $word_str {
                     my UInt16 $word = $word_str.parse-base: 16;
@@ -145,7 +145,7 @@ my package EXPORT::DEFAULT {
                     my UInt16 $word = $word_str.parse-base: 16;
                     my ($l,$r) = word-bytes $word;
                     (@bytes[$j--],@bytes[$j--]) = ($r,$l);
-                }                
+                }
                 self.BUILD(octets=>@bytes)
             } else {
                 X::Net::IP::Parse::Err.new(input=>"no version detected from $addr").throw;
@@ -158,7 +158,7 @@ my package EXPORT::DEFAULT {
             for 0..^$l -> $j { @a[$j] = 0; }
             @!octets = @a;
             my $i = 0;
-            for @($octets) -> $octet { @!octets[$i++] := $octet; }            
+            for @($octets) -> $octet { @!octets[$i++] := $octet; }
             $!version := $l == 4 ?? 4 !! 6;
         }
 
@@ -194,7 +194,7 @@ my package EXPORT::DEFAULT {
                 }
 
                 my @print_words = @!octets.map: {sprintf("%x", bytes-word($^a,$^b))};
-                if $max_len != 0 {                    
+                if $max_len != 0 {
                     my ($pre,$post) = ('','');
                     $pre = @print_words[0..($max_start-1)].join: ':' if $max_start > 0;
                     $post = @print_words[($max_end+1)..7].join: ':' if $max_end < 8;
@@ -210,12 +210,12 @@ my package EXPORT::DEFAULT {
             self.compress-str;
         }
     }
-    
+
     my sub cmp(IP:D $lhs, IP:D $rhs --> Bool:D) {
         my $l := ($lhs.version == 4) ?? 4 !! 16;
         return $lhs.octets == $l && $rhs.octets == $l;
     }
-    
+
     our sub infix:<< ip== >> (IP:D $lhs, IP:D $rhs --> Bool:D) {
         return cmp($lhs,$rhs) && so ($lhs.octets Z== $rhs.octets).all;
     }
@@ -231,12 +231,12 @@ my package EXPORT::DEFAULT {
     class CIDR {
 
         has UInt $.prefix;
-        has IP $.addr;       
+        has IP $.addr;
         has IP $.prefix_addr;
         has IP $.broadcast_addr;
         has IP $.network_addr;
         has IP $.wildcard_addr;
-        
+
         multi submethod BUILD(Str:D :$cidr) {
             my Str @s = split('/',$cidr);
             unless (@s.elems == 2 && @s[0] ne '' && @s[1] ne '') {
@@ -258,8 +258,8 @@ my package EXPORT::DEFAULT {
             @b[^16] = (loop { 0 });
             my $div = $prefix div 8;
             for 0..^$div -> $i { @b[$i] = 255; }
-            @b[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1);
-            
+            @b[$div] = 255 +^ (2**((($div + 1) * 8) - $prefix)-1) if $div < 16;
+
             my UInt8 @mask_octets[$octet_count] = $addr.version == 4 ?? @b[0..3] !! @b;
             my UInt8 @wildcard_octets[$octet_count];
             my UInt8 @network_octets[$octet_count];
