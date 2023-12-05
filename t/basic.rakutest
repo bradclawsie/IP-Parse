@@ -1,6 +1,7 @@
 use v6;
 use Test;
 use Subsets::Common;
+use lib 'lib';
 use Net::IP::Parse;
 
 lives-ok {
@@ -218,12 +219,12 @@ lives-ok {
     my IP $ref = IP.new(addr=>'0:0:ffff:ffff:ffff:ffff:ffff:ffff');
     is ($ip ip== $ref), True, 'equivalent with reference';
     my $compressed = $ip.compress_str;
-    is ($compressed eq $s), True, 'compressed';    
+    is ($compressed eq $s), True, 'compressed';
 }, 'valid compress';
 
 lives-ok {
     my CIDR $cidr = CIDR.new(cidr=>'8.8.8.8/16');
-    my IP $addr = IP.new(addr=><8.8.8.8>);   
+    my IP $addr = IP.new(addr=><8.8.8.8>);
     is ($addr ip== $cidr.addr), True, 'addr equal';
     my IP $prefix_addr = IP.new(addr=><255.255.0.0>);
     is ($prefix_addr ip== $cidr.prefix_addr), True, 'prefix equal';
@@ -292,5 +293,13 @@ dies-ok {
     my IP $addr = IP.new(addr=>'2001:0db8:0000:0000:0000:0000:0000:0000');
     is ($addr in-cidr $cidr), True, 'ip in cidr';
 }, 'detected version mismatch';
+
+lives-ok {
+  my CIDR $cidr1 .= new: cidr => '::1/128';
+  ok IP.new(addr => '::1') in-cidr $cidr1, '::1 is in ::1/128';
+  my CIDR $cidr2 .= new: cidr => '::4/127';
+  ok IP.new(addr => '::5') in-cidr $cidr2, '::5 is in ::4/127';
+  nok IP.new(addr => '::6') in-cidr $cidr2, '::6 is not in ::4/127';
+}, 'CIDR with /128';
 
 done-testing;
